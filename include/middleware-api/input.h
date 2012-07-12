@@ -1,8 +1,9 @@
-// (c) Copyright 2012 Felipe Magno de Almeida
-//
-// Distributed under the Boost Software License, Version 1.0. (See
-// accompanying file LICENSE_1_0.txt or copy at
-// http://www.boost.org/LICENSE_1_0.txt)
+/* (c) Copyright 2012 Felipe Magno de Almeida
+ *
+ * Distributed under the Boost Software License, Version 1.0. (See
+ * accompanying file LICENSE_1_0.txt or copy at
+ * http://www.boost.org/LICENSE_1_0.txt)
+ */
 
 #ifndef MIDDLEWARE_API_PROPOSAL_INPUT_H
 #define MIDDLEWARE_API_PROPOSAL_INPUT_H
@@ -11,7 +12,7 @@
 extern "C" {
 #endif
 
-enum keys
+enum middleware_api_input_keys
 {
   middleware_api_input_red_key
   , middleware_api_input_green_key
@@ -31,9 +32,10 @@ enum keys
   , middleware_api_input_cursor_down_key
   , middleware_api_input_enter_key
   , middleware_api_input_info_key
+  , middleware_api_input_invalid_key
 };
 
-void middleware_api_input_remote_control_key (keys key);
+void middleware_api_input_remote_control_key (enum middleware_api_input_keys key);
 
 #ifdef __cplusplus
 }

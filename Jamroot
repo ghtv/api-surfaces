@@ -8,6 +8,11 @@ project middleware-api ;
 
 alias middleware-api : : : : <include>include ;
 
-lib middleware-api-directfb : directfb/src/graphics.c middleware-api /dfb//dfb
+lib middleware-api-directfb : directfb/src/graphics.c directfb/src/input.c middleware-api /dfb//dfb
  ;
 
+exe middleware-api-process : process/src/main.c middleware-api-directfb ;
+
+
+install stage : middleware-api-process : <install-dependencies>on <install-type>EXE
+ <install-type>SHARED_LIB ;

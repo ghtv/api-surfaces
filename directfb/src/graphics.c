@@ -1,8 +1,9 @@
-// (c) Copyright 2012 Felipe Magno de Almeida
-//
-// Distributed under the Boost Software License, Version 1.0. (See
-// accompanying file LICENSE_1_0.txt or copy at
-// http://www.boost.org/LICENSE_1_0.txt)
+/* (c) Copyright 2012 Felipe Magno de Almeida
+ *
+ * Distributed under the Boost Software License, Version 1.0. (See
+ * accompanying file LICENSE_1_0.txt or copy at
+ * http://www.boost.org/LICENSE_1_0.txt)
+ */
 
 #include <middleware-api/graphics.h>
 #include <directfb.h>
@@ -13,19 +14,19 @@ struct middleware_api_graphics_surface;
 typedef struct middleware_api_graphics_surface middleware_api_graphics_surface;
 typedef enum middleware_api_graphics_image_format middleware_api_graphics_image_format;
 
-static IDirectFB* dfb;
+IDirectFB* directfb;
 static IDirectFBSurface* primary_surface;
 
 void middleware_api_graphics_initialize(int argc, char** argv)
 {
-  assert(dfb == 0);
+  assert(directfb == 0);
   assert(primary_surface == 0);
 
   DirectFBInit(&argc, &argv);
-  DirectFBCreate(&dfb);
+  DirectFBCreate(&directfb);
   
   IDirectFBDisplayLayer* display_layer = 0;
-  dfb->GetDisplayLayer(dfb, DLID_PRIMARY, &display_layer);
+  directfb->GetDisplayLayer(directfb, DLID_PRIMARY, &display_layer);
   
   display_layer->GetSurface(display_layer, &primary_surface);
 }
@@ -39,7 +40,7 @@ middleware_api_graphics_surface* middleware_api_graphics_create_surface
   description.width = width;
   description.height = height;
   IDirectFBSurface* surface = 0;
-  dfb->CreateSurface(dfb, &description, &surface);
+  directfb->CreateSurface(directfb, &description, &surface);
   return (middleware_api_graphics_surface*)surface;
 }
 
@@ -66,23 +67,24 @@ middleware_api_graphics_surface* middleware_api_graphics_load_image
  (const char* buffer, size_t size
   , middleware_api_graphics_image_format format)
 {
-  const char* filename = 0;
-  switch(format)
-  {
-  case middleware_api_graphics_image_format_jpeg:
-    filename = "a.jpg";
-    break;
-  case middleware_api_graphics_image_format_png:
-    filename = "a.png";
-    break;
-  case middleware_api_graphics_image_format_gif:
-    filename = "a.gif";
-    break;
-  default:
-    abort();
-  }
-  IDirectFBImageProvider provider = 0;
-  dfb->CreateImageProvider(dfb, filename, &provider);
+  /* const char* filename = 0; */
+  /* switch(format) */
+  /* { */
+  /* case middleware_api_graphics_image_format_jpeg: */
+  /*   filename = "a.jpg"; */
+  /*   break; */
+  /* case middleware_api_graphics_image_format_png: */
+  /*   filename = "a.png"; */
+  /*   break; */
+  /* case middleware_api_graphics_image_format_gif: */
+  /*   filename = "a.gif"; */
+  /*   break; */
+  /* default: */
+  /*   abort(); */
+  /* } */
+  /* IDirectFBImageProvider provider = 0; */
+  /* directfb->CreateImageProvider(directfb, filename, &provider); */
+  return 0;
 }
 
 size_t middleware_api_graphics_width(middleware_api_graphics_surface* p)
