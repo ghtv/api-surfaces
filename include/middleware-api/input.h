@@ -8,6 +8,8 @@
 #ifndef MIDDLEWARE_API_PROPOSAL_INPUT_H
 #define MIDDLEWARE_API_PROPOSAL_INPUT_H
 
+#include <middleware-api/declaration.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -35,7 +37,8 @@ enum middleware_api_input_keys
   , middleware_api_input_invalid_key
 };
 
-void middleware_api_input_remote_control_key (enum middleware_api_input_keys key);
+MIDDLEWARE_API_MIDDLEWARE_DECL void middleware_api_input_remote_control_key
+ (enum middleware_api_input_keys key);
 
 #ifdef __cplusplus
 }

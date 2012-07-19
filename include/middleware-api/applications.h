@@ -8,15 +8,17 @@
 #ifndef MIDDLEWARE_API_PROPOSAL_APPLICATIONS_H
 #define MIDDLEWARE_API_PROPOSAL_APPLICATIONS_H
 
+#include <middleware-api/declaration.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void middleware_api_application_add(unsigned int app_code, unsigned int x);
+MIDDLEWARE_API_MANUFACTURER_DECL void middleware_api_application_add
+ (unsigned int app_code, unsigned int x);
 
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif

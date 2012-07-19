@@ -13,6 +13,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <middleware-api/declaration.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -22,14 +24,17 @@ typedef void(*middleware_api_sections_filter_callback_t)
 
 struct middleware_api_sections_filter;
 
-struct middleware_api_sections_filter* middleware_api_sections_create_filter_for_pid
-(uint16_t pid, middleware_api_sections_filter_callback_t callback, void* state);
+MIDDLEWARE_API_MANUFACTURER_DECL struct middleware_api_sections_filter*
+ middleware_api_sections_create_filter_for_pid
+ (uint16_t pid, middleware_api_sections_filter_callback_t callback, void* state);
 
-struct middleware_api_sections_filter* middleware_api_sections_create_filter_for_pid_and_table_id 
-(uint16_t pid, uint16_t table_id, middleware_api_sections_filter_callback_t callback
- , void* state);
+MIDDLEWARE_API_MANUFACTURER_DECL struct middleware_api_sections_filter*
+ middleware_api_sections_create_filter_for_pid_and_table_id 
+ (uint16_t pid, uint16_t table_id, middleware_api_sections_filter_callback_t callback
+  , void* state);
 
-void middleware_api_sections_remove_filter(struct middleware_api_sections_filter* p);
+MIDDLEWARE_API_MANUFACTURER_DECL void middleware_api_sections_remove_filter
+ (struct middleware_api_sections_filter* p);
 
 #ifdef __cplusplus
 }

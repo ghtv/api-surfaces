@@ -10,14 +10,17 @@
 
 #include <stddef.h>
 
+#include <middleware-api/declaration.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void middleware_api_lifetime_start(unsigned int service_id
-                                   , const char* pat_section, size_t pat_size
-                                   , const char* pmt_section, size_t pmt_size);
-void middleware_api_lifetime_stop();
+MIDDLEWARE_API_MIDDLEWARE_DECL void middleware_api_lifetime_start
+ (unsigned int service_id
+  , const char* pat_section, size_t pat_size
+  , const char* pmt_section, size_t pmt_size);
+MIDDLEWARE_API_MIDDLEWARE_DECL void middleware_api_lifetime_stop();
 
 #ifdef __cplusplus
 }
