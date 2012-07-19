@@ -11,23 +11,25 @@
 #define MIDDLEWARE_API_PROPOSAL_SECTIONS
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef void(*middleware_api_sections_filter_callback_type)
+typedef void(*middleware_api_sections_filter_callback_t)
   (const char* buffer, size_t size, void* state);
 
 struct middleware_api_sections_filter;
 
-middleware_api_sections_filter* middleware_api_sections_create_filter_for_pid
-(uint16_t pid, middleware_api_sections_filter_callback_type callback);
+struct middleware_api_sections_filter* middleware_api_sections_create_filter_for_pid
+(uint16_t pid, middleware_api_sections_filter_callback_t callback, void* state);
 
-middleware_api_sections_filter* middleware_api_sections_create_filter_for_pid_and_table_id 
-(uint16_t pid, uint_t table_id, middleware_api_sections_filter_callback_type callback);
+struct middleware_api_sections_filter* middleware_api_sections_create_filter_for_pid_and_table_id 
+(uint16_t pid, uint16_t table_id, middleware_api_sections_filter_callback_t callback
+ , void* state);
 
-void middleware_api_sections_remove_filter(middleware_api_sections_filter* p);
+void middleware_api_sections_remove_filter(struct middleware_api_sections_filter* p);
 
 #ifdef __cplusplus
 }

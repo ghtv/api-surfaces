@@ -4,15 +4,28 @@
 # accompanying file LICENSE_1_0.txt or copy at
 # http://www.boost.org/LICENSE_1_0.txt)
 
-project middleware-api ;
+project middleware-api
+ : requirements <threading>multi
+ ;
 
 alias middleware-api : : : : <include>include ;
 
 lib middleware-api-directfb : directfb/src/graphics.c directfb/src/input.c middleware-api /dfb//dfb
  ;
+explicit middleware-api-directfb ;
 
-exe middleware-api-process : process/src/main.c middleware-api-directfb ;
+lib middleware-api-dvbv3 : dvbv3/src/sections.c middleware-api ;
+explicit middleware-api-dvbv3 ;
 
+lib middleware-api-dvbv5 : dvbv5/src/sections.c middleware-api ;
+explicit middleware-api-dvbv5 ;
+
+exe middleware-api-process : process/src/main.c process/src/demultiplex.c
+ middleware-api-directfb
+ middleware-api-dvbv5 /middleware//middleware
+ : <include>process/include
+ ;
+explicit middleware-api-process ;
 
 install stage : middleware-api-process : <install-dependencies>on <install-type>EXE
  <install-type>SHARED_LIB ;

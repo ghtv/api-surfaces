@@ -17,11 +17,21 @@ extern IDirectFB* directfb;
 
 typedef enum middleware_api_input_keys middleware_api_input_keys;
 
-void middleware_api_input_initialize()
+int middleware_api_input_initialize()
 {
   DFBInputDeviceID device = DIDID_KEYBOARD;
   directfb->GetInputDevice (directfb, device, &keyboard);
   keyboard->CreateEventBuffer (keyboard, &keyboard_buffer);
+  int fd = 0;
+  keyboard_buffer->CreateFileDescriptor(keyboard_buffer, &fd);
+  return fd;
+}
+
+void middleware_api_input_ready_fd(int fd, void* state)
+{
+  printf("middleware_api_input_ready_fd\n");
+  char buffer[1024];
+  read(fd, buffer, sizeof(buffer));
 }
 
 void middleware_api_input_wait_event()
