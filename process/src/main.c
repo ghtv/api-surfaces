@@ -40,7 +40,8 @@ struct pat_state
   unsigned int service_id;
 };
 
-void pmt_callback(const char* buffer, size_t size, void* state)
+void pmt_callback(const char* buffer, size_t size
+                  , struct middleware_api_sections_filter* filter, void* state)
 {
   printf ("pmt_callback\n");
   struct pat_state* p = (struct pat_state*)state;
@@ -49,7 +50,8 @@ void pmt_callback(const char* buffer, size_t size, void* state)
   middleware_api_sections_remove_filter(p->pmt_filter);
 }
 
-void pat_callback(const char* buffer, size_t size, void* state)
+void pat_callback(const char* buffer, size_t size
+                  , struct middleware_api_sections_filter* filter, void* state)
 {
   printf ("pat_callback\n");
   assert(size <= 4096);
