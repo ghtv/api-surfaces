@@ -30,7 +30,8 @@ struct middleware_api_sections_filter
 };
 
 static int frontend_fd;
-static const int frequency = 533142857;
+static const int frequency = 623142857;
+//623142857;//533142857;
 //static const int frequency = 641142857;
 
 typedef void(*process_demultiplex_callback)(int, void*);
@@ -117,16 +118,18 @@ void middleware_api_sections_tune()
 
 struct fd_ready_callback_state
 {
+  struct middleware_api_sections_filter* filter;
   void* state;
   middleware_api_sections_filter_callback_t callback;
 };
 
 static void fd_ready_callback(int fd, void* state)
 {
-  printf("fd_ready_callback\n");
+  //printf("fd_ready_callback\n");
   struct fd_ready_callback_state* callback_state
     = (struct fd_ready_callback_state*)state;
   middleware_api_sections_filter_callback_t callback = callback_state->callback;
+  struct middleware_api_sections_filter* filter = callback_state->filter;
   void* other_state = callback_state->state;
   char buffer[4096];
   int r = 0;
@@ -136,27 +139,25 @@ static void fd_ready_callback(int fd, void* state)
   } while(r == -1 && errno == EINTR);
   if(r > 0)
   {
-    callback(buffer, r, other_state);
+    callback(buffer, r, filter, other_state);
   }
   else
   {
-    
+    printf("Error reading error %d errno %d\n", r, errno);
+    abort();
   }
 }
 
-middleware_api_sections_filter* middleware_api_sections_create_filter_for_pid
-(uint16_t pid, middleware_api_sections_filter_callback_t callback, void* state)
+static middleware_api_sections_filter*
+create_filter_for_params(struct dmx_sct_filter_params p
+                         , middleware_api_sections_filter_callback_t callback
+                         , void* state)
 {
-  printf("middleware_api_sections_create_filter_for_pid pid %d\n", (int)pid);
   const char* demux_device_path = "/dev/dvb/adapter0/demux0";
   int fd = open(demux_device_path, O_RDWR);
 
   ioctl(fd, DMX_SET_BUFFER_SIZE, 4096*1000);
 
-  struct dmx_sct_filter_params p;
-  memset(&p, 0, sizeof(p));
-  p.pid = pid;
-  p.flags = DMX_CHECK_CRC | DMX_IMMEDIATE_START;
   int r = 0;
   do
   {
@@ -169,29 +170,40 @@ middleware_api_sections_filter* middleware_api_sections_create_filter_for_pid
     abort();
   }
 
-  struct fd_ready_callback_state* callback_state
-    = (struct fd_ready_callback_state*)
-    malloc(sizeof(struct fd_ready_callback_state));
-  callback_state->state = state;
-  callback_state->callback = callback;
-  middleware_api_sections_add_fd(fd, &fd_ready_callback, callback_state);
-
   middleware_api_sections_filter* result
     = (middleware_api_sections_filter*)
     malloc(sizeof(middleware_api_sections_filter));
   result->fd = fd;
+
+  struct fd_ready_callback_state* callback_state
+    = (struct fd_ready_callback_state*)
+    malloc(sizeof(struct fd_ready_callback_state));
+  callback_state->filter = result;
+  callback_state->state = state;
+  callback_state->callback = callback;
+  middleware_api_sections_add_fd(fd, &fd_ready_callback, callback_state);
+
   return result;
 }
 
+middleware_api_sections_filter* middleware_api_sections_create_filter_for_pid
+(uint16_t pid, middleware_api_sections_filter_callback_t callback, void* state)
+{
+  printf("middleware_api_sections_create_filter_for_pid pid %d\n", (int)pid);
+
+  struct dmx_sct_filter_params p;
+  memset(&p, 0, sizeof(p));
+  p.pid = pid;
+  p.flags = DMX_CHECK_CRC | DMX_IMMEDIATE_START;
+
+  return create_filter_for_params(p, callback, state);
+}
+
 middleware_api_sections_filter* middleware_api_sections_create_filter_for_pid_and_table_id
-(uint16_t pid, uint16_t table_id, middleware_api_sections_filter_callback_t callback
+(uint16_t pid, uint8_t table_id, middleware_api_sections_filter_callback_t callback
  , void* state)
 {
   printf("middleware_api_sections_create_filter_for_pid pid %d table %d\n", (int)pid, (int)table_id);
-  const char* demux_device_path = "/dev/dvb/adapter0/demux0";
-  int fd = open(demux_device_path, O_RDWR);
-
-  ioctl(fd, DMX_SET_BUFFER_SIZE, 4096*1000);
 
   struct dmx_sct_filter_params p;
   memset(&p, 0, sizeof(p));
@@ -199,30 +211,30 @@ middleware_api_sections_filter* middleware_api_sections_create_filter_for_pid_an
   p.flags = DMX_CHECK_CRC | DMX_IMMEDIATE_START;
   p.filter.filter[0] = table_id;
   p.filter.mask[0] = 0xFF;
-  int r = 0;
-  do
-  {
-    r = ioctl(fd, DMX_SET_FILTER, &p);
-  }
-  while(r == -1 && errno == EINTR);
-  if(r == -1)
-  {
-    printf("Error adding filter with error %d and errno %d", r, errno);
-    abort();
-  }
 
-  struct fd_ready_callback_state* callback_state
-    = (struct fd_ready_callback_state*)
-    malloc(sizeof(struct fd_ready_callback_state));
-  callback_state->state = state;
-  callback_state->callback = callback;
-  middleware_api_sections_add_fd(fd, &fd_ready_callback, callback_state);
+  return create_filter_for_params(p, callback, state);
+}
 
-  middleware_api_sections_filter* result
-    = (middleware_api_sections_filter*)
-    malloc(sizeof(middleware_api_sections_filter));
-  result->fd = fd;
-  return result;
+middleware_api_sections_filter*
+middleware_api_sections_create_filter_for_pid_and_table_id_and_table_id_extension
+(uint16_t pid, uint8_t table_id, uint16_t table_id_extension
+ , middleware_api_sections_filter_callback_t callback
+ , void* state)
+{
+  printf("middleware_api_sections_create_filter_for_pid pid %d table %d\n", (int)pid, (int)table_id);
+
+  struct dmx_sct_filter_params p;
+  memset(&p, 0, sizeof(p));
+  p.pid = pid;
+  p.flags = DMX_CHECK_CRC | DMX_IMMEDIATE_START;
+  p.filter.filter[0] = table_id;
+  p.filter.mask[0] = 0xFF;
+  p.filter.filter[1] = (table_id_extension >> 8) & 0xFF;
+  p.filter.mask[1] = 0xFF;
+  p.filter.filter[2] = table_id_extension & 0xFF;
+  p.filter.mask[2] = 0xFF;
+
+  return create_filter_for_params(p, callback, state);
 }
 
 void middleware_api_sections_remove_filter(middleware_api_sections_filter* p)
