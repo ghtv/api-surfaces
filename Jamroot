@@ -10,7 +10,8 @@ project middleware-api
 
 alias middleware-api : : : : <include>include ;
 
-lib middleware-api-directfb : directfb/src/graphics.c directfb/src/input.c middleware-api /dfb//dfb
+lib middleware-api-directfb : directfb/src/graphics.c directfb/src/input.c
+ middleware-api /dfb//dfb
  ;
 explicit middleware-api-directfb ;
 
