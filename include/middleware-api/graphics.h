@@ -20,6 +20,7 @@ extern "C" {
 #endif
 
 struct middleware_api_graphics_surface;
+typedef struct middleware_api_graphics_surface* middleware_api_graphics_surface_t;
 
 enum middleware_api_graphics_image_format
 {
@@ -29,33 +30,33 @@ enum middleware_api_graphics_image_format
 };
 
 MIDDLEWARE_API_MANUFACTURER_DECL void middleware_api_graphics_draw_on_primary_surface
- (struct middleware_api_graphics_surface* primary);
+ (middleware_api_graphics_surface_t primary);
 
-MIDDLEWARE_API_MANUFACTURER_DECL struct middleware_api_graphics_surface*
+MIDDLEWARE_API_MANUFACTURER_DECL middleware_api_graphics_surface_t
  middleware_api_graphics_create_surface
  (unsigned int width, unsigned int height);
 
 MIDDLEWARE_API_MANUFACTURER_DECL void middleware_api_graphics_release_surface
- (struct middleware_api_graphics_surface* p);
+ (middleware_api_graphics_surface_t p);
 
 MIDDLEWARE_API_MANUFACTURER_DECL void middleware_api_graphics_stretch_bitblit
-(struct middleware_api_graphics_surface* destination, struct middleware_api_graphics_surface* source
+(middleware_api_graphics_surface_t destination, middleware_api_graphics_surface_t source
  , unsigned int dx, unsigned int dy, unsigned int dw, unsigned int dh
  , unsigned int sx, unsigned int sy, unsigned int sw, unsigned int sh);
 
 MIDDLEWARE_API_MANUFACTURER_DECL void middleware_api_graphics_clear_surface
- (struct middleware_api_graphics_surface* p, uint32_t color);
+ (middleware_api_graphics_surface_t p, uint32_t color);
 
-MIDDLEWARE_API_MANUFACTURER_DECL struct middleware_api_graphics_surface*
+MIDDLEWARE_API_MANUFACTURER_DECL middleware_api_graphics_surface_t
  middleware_api_graphics_load_image
  (const char* buffer, size_t size
   , enum middleware_api_graphics_image_format format);
 
 MIDDLEWARE_API_MANUFACTURER_DECL size_t middleware_api_graphics_width
- (struct middleware_api_graphics_surface* p);
+ (middleware_api_graphics_surface_t p);
 
 MIDDLEWARE_API_MANUFACTURER_DECL size_t middleware_api_graphics_height
- (struct middleware_api_graphics_surface* p);
+ (middleware_api_graphics_surface_t p);
 
 #ifdef __cplusplus
 }
