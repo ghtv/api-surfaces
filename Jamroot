@@ -4,6 +4,10 @@
 # accompanying file LICENSE_1_0.txt or copy at
 # http://www.boost.org/LICENSE_1_0.txt)
 
+import feature ;
+
+feature.feature integration-link : shared static : composite link-incompatible ;
+
 project middleware-api
  : requirements <threading>multi
  ;
@@ -25,6 +29,8 @@ exe middleware-api-process : process/src/main.c process/src/demultiplex.c
  middleware-api-directfb
  middleware-api-dvbv5 /middleware//middleware
  : <include>process/include
+ # <integration-link>shared:<source>/middleware//middleware/<link>shared
+ # <integration-link>static:<source>/middleware//middleware/<link>static
  ;
 explicit middleware-api-process ;
 
