@@ -27,10 +27,16 @@ typedef struct middleware_api_sections_filter middleware_api_sections_filter;
 struct middleware_api_sections_filter
 {
   int fd;
+  int closed;
 };
 
 static int frontend_fd;
 static const int frequency = 623142857;
+  //  635142857;
+  //  599142857;
+//  515142857;
+//533142857;
+//563142857;
 //623142857;//533142857;
 //static const int frequency = 641142857;
 
@@ -135,17 +141,23 @@ static void fd_ready_callback(int fd, void* state)
   int r = 0;
   do
   {
-    r = read(fd, buffer, sizeof(buffer));
-  } while(r == -1 && errno == EINTR);
-  if(r > 0)
-  {
-    callback(buffer, r, filter, other_state);
+    do
+    {
+      r = read(fd, buffer, sizeof(buffer));
+    } while(r == -1 && errno == EINTR);
+    if(r > 0)
+    {
+      callback(buffer, r, filter, other_state);
+    }
+    else if(r == -1 && errno == EAGAIN)
+      break;
+    else
+    {
+      printf("Error reading error %d errno %d\n", r, errno);
+      abort();
+    }
   }
-  else
-  {
-    printf("Error reading error %d errno %d\n", r, errno);
-    abort();
-  }
+  while(!filter->closed);
 }
 
 static middleware_api_sections_filter*
@@ -154,7 +166,7 @@ create_filter_for_params(struct dmx_sct_filter_params p
                          , void* state)
 {
   const char* demux_device_path = "/dev/dvb/adapter0/demux0";
-  int fd = open(demux_device_path, O_RDWR);
+  int fd = open(demux_device_path, O_RDWR|O_NONBLOCK);
 
   ioctl(fd, DMX_SET_BUFFER_SIZE, 4096*1000);
 
@@ -174,6 +186,7 @@ create_filter_for_params(struct dmx_sct_filter_params p
     = (middleware_api_sections_filter*)
     malloc(sizeof(middleware_api_sections_filter));
   result->fd = fd;
+  result->closed = 0;
 
   struct fd_ready_callback_state* callback_state
     = (struct fd_ready_callback_state*)
@@ -221,7 +234,7 @@ middleware_api_sections_create_filter_for_pid_and_table_id_and_table_id_extensio
  , middleware_api_sections_filter_callback_t callback
  , void* state)
 {
-  printf("middleware_api_sections_create_filter_for_pid pid %d table %d\n", (int)pid, (int)table_id);
+  printf("middleware_api_sections_create_filter_for_pid pid %d table %d table extension %d\n", (int)pid, (int)table_id, (int)table_id_extension);
 
   struct dmx_sct_filter_params p;
   memset(&p, 0, sizeof(p));
@@ -241,5 +254,6 @@ void middleware_api_sections_remove_filter(middleware_api_sections_filter* p)
 {
   assert(p != 0);
   middleware_api_sections_rm_fd(p->fd);
+  p->closed = 1;
 }
 
