@@ -23,6 +23,7 @@ int middleware_api_input_initialize();
 void middleware_api_sections_tune();
 #else
 void middleware_api_sections_read();
+void middleware_api_sections_initialize();
 #endif
 
 void middleware_api_input_ready_fd(int fd, void* state);
@@ -117,6 +118,8 @@ int main(int argc, char** argv)
   process_demultiplex_add_fd(input_fd, &middleware_api_input_ready_fd, 0);
 #ifndef MIDDLEWARE_API_IMPL_TS_FILE
   middleware_api_sections_tune();
+#else
+  middleware_api_sections_initialize();
 #endif
 
   char pat_buffer[4096];
