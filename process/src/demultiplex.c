@@ -78,10 +78,10 @@ void process_demultiplex_events()
   {
     struct epoll_event events[10];
     int r = epoll_wait(epoll_instance, &events[0], 1, -1);
-    printf("Returned from epoll_wait return %d\n", r);
+    //printf("Returned from epoll_wait return %d\n", r);
     if(r == 1)
     {
-      printf("calling callback\n");
+      //printf("calling callback\n");
       struct process_demultiplex_event_data* data
         = (struct process_demultiplex_event_data*)events[0].data.ptr;
       assert(data != 0);

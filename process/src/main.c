@@ -14,9 +14,17 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <pthread.h>
+
 void middleware_api_graphics_initialize(int argc, char** argv);
 int middleware_api_input_initialize();
+
+#ifndef MIDDLEWARE_API_IMPL_TS_FILE
 void middleware_api_sections_tune();
+#else
+void middleware_api_sections_read();
+#endif
+
 void middleware_api_input_ready_fd(int fd, void* state);
 
 void middleware_api_sections_add_fd(int fd, process_demultiplex_callback callback
@@ -94,13 +102,22 @@ void pat_callback(const char* buffer, size_t size
     printf("! pat_callback current_next_indicator\n");
 }
 
+void* demultiplex_thread(void* p)
+{
+  (void)p;
+  process_demultiplex_events();
+  return 0;
+}
+
 int main(int argc, char** argv)
 {
   process_demultiplex_initialize();
   middleware_api_graphics_initialize(argc, argv);
   int input_fd = middleware_api_input_initialize();
   process_demultiplex_add_fd(input_fd, &middleware_api_input_ready_fd, 0);
+#ifndef MIDDLEWARE_API_IMPL_TS_FILE
   middleware_api_sections_tune();
+#endif
 
   char pat_buffer[4096];
   struct pat_state pat_state =
@@ -109,7 +126,13 @@ int main(int argc, char** argv)
   pat_state.pat_filter = 
     middleware_api_sections_create_filter_for_pid(0, &pat_callback, &pat_state);
 
+#ifndef MIDDLEWARE_API_IMPL_TS_FILE
   process_demultiplex_events();
-  
+#else
+  pthread_t thread;
+  pthread_create(&thread, 0, &demultiplex_thread, 0);
+
+  middleware_api_sections_read();
+#endif
   return 0;
 }

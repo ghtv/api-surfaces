@@ -25,14 +25,35 @@ explicit middleware-api-dvbv3 ;
 lib middleware-api-dvbv5 : dvbv5/src/sections.c middleware-api ;
 explicit middleware-api-dvbv5 ;
 
-exe middleware-api-process : process/src/main.c process/src/demultiplex.c
+lib middleware-api-ts-file : ts-file/src/sections.c middleware-api
+ : : : <define>MIDDLEWARE_API_IMPL_TS_FILE
+ ;
+explicit middleware-api-ts-file ;
+
+exe middleware-api-dvbv5-process : process/src/main.c process/src/demultiplex.c
  middleware-api-directfb
  middleware-api-dvbv5 /middleware//middleware
  : <include>process/include
  # <integration-link>shared:<source>/middleware//middleware/<link>shared
  # <integration-link>static:<source>/middleware//middleware/<link>static
  ;
-explicit middleware-api-process ;
+explicit middleware-api-dvbv5-process ;
 
-install stage : middleware-api-process : <install-dependencies>on <install-type>EXE
+exe middleware-api-ts-file-process : process/src/main.c process/src/demultiplex.c
+ middleware-api-directfb
+ middleware-api-ts-file /middleware//middleware
+ : <include>process/include
+ # <integration-link>shared:<source>/middleware//middleware/<link>shared
+ # <integration-link>static:<source>/middleware//middleware/<link>static
+ ;
+explicit middleware-api-ts-file-process ;
+
+install stage-dvbv5 : middleware-api-dvbv5-process
+ : <install-dependencies>on <install-type>EXE <location>stage
  <install-type>SHARED_LIB ;
+explicit stage-dvbv5 ;
+
+install stage-ts-file : middleware-api-ts-file-process
+ : <install-dependencies>on <install-type>EXE <location>stage
+ <install-type>SHARED_LIB ;
+explicit stage-ts-file ;
