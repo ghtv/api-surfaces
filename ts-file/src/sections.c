@@ -198,10 +198,12 @@ void middleware_api_sections_read()
             //    = past-the-end section buffer
 
             middleware_api_sections_filter_t filter = section_filters[filter_index].filter;
-            if((filter->last == 0 && buffer[sync+1] & 0x40)
-               || (((filter->continuity_counter + 1) & 0xF) == (buffer[sync+3] & 0xF)
-                   && filter->last != 0))
+            if((buffer[sync+1] & 0x40)
+              || (!(buffer[sync+1] & 0x40) && ((filter->continuity_counter + 1) & 0xF) == (buffer[sync+3] & 0xF)))
             {
+              if(buffer[sync+1] & 0x40)
+                filter->last = 0;
+              
               // pre-condition:
               //  current_section{pid} = pid
               //  && (continuity_counter = 0xf & (current_section_{continuity_counter} + 1)
@@ -223,17 +225,22 @@ void middleware_api_sections_read()
                 //      && adaptation_length == 184)
                 //  || (adaptation_field_control == 0x01 && payload_size == 184
                 //      && adaptation_length == 0)
+
+                unsigned int skip = 0;
+
+                if(filter->last == 0 && payload_size > 0)
+                  skip = (unsigned int)(unsigned char)buffer[sync+4+adaptation_length] + 1;
                 
                 assert(payload_size + adaptation_length == 184);
                 assert(payload_size >= 0);
                 assert(adaptation_length >= 0);
 
                 assert(filter->last <= 4096);
-                int length = 4096 - filter->last < payload_size
-                  ? 4096 - filter->last : payload_size;
+                int length = 4096 - filter->last < payload_size-skip
+                  ? 4096 - filter->last : payload_size-skip;
 
                 memcpy(&filter->section[filter->last]
-                       , &buffer[sync+4+adaptation_length]
+                       , &buffer[sync+4+adaptation_length+skip]
                        , length);
                 
                 filter->last += length;
@@ -241,38 +248,36 @@ void middleware_api_sections_read()
 
                 if(filter->is_section)
                 {
-                  int skip = (unsigned int)filter->section[0] + 1;
-                  if(skip < filter->last)
+                  if(filter->last > 3)
                   {
-                    if(filter->last - skip > 3)
+                    if((filter->section[1] & 0xB0) == 0xB0)
                     {
-                      if((filter->section[skip+1] & 0xB0) == 0xB0)
-                      {
-                        uint16_t section_size;
+                      uint16_t section_size;
 #if 0
 
 #else
-                        ((char*)&section_size)[0] = filter->section[skip+2];
-                        ((char*)&section_size)[1] = filter->section[skip+1] & 0xF;
+                      ((char*)&section_size)[0] = filter->section[2];
+                      ((char*)&section_size)[1] = filter->section[1] & 0xF;
 #endif
-                        if(section_size <= filter->last - skip)
+                      if(section_size <= 4096-3)
+                        section_size += 3;
+                      if(section_size <= filter->last)
+                      {
+                        printf("table_id_size %d\n", (int)filter->table_id_size);
+                        if(filter->table_id_size == 0
+                           || (filter->table_id_size == 1
+                               && filter->table_id[0] == filter->section[0]))
                         {
-                          printf("table_id_size %d\n", (int)filter->table_id_size);
-                          if(filter->table_id_size == 0
-                             || (filter->table_id_size == 1
-                                 && filter->table_id[0] == filter->section[skip]))
+                          int i = 0;
+                          for(; i != MIDDLEWARE_API_SECTIONS_CALLBACK_SIZE
+                                && filter->callbacks[i]; ++i)
                           {
-                            int i = 0;
-                            for(; i != MIDDLEWARE_API_SECTIONS_CALLBACK_SIZE
-                                  && filter->callbacks[i]; ++i)
-                            {
-                              filter->callbacks[i](&filter->section[skip]
-                                                   , section_size
-                                                   , filter, filter->states[i]);
-                            }
+                            filter->callbacks[i](&filter->section[0]
+                                                 , section_size
+                                                 , filter, filter->states[i]);
                           }
-                          filter->last = 0;
                         }
+                        filter->last = 0;
                       }
                     }
                   }
@@ -286,13 +291,14 @@ void middleware_api_sections_read()
             {
               if((filter->continuity_counter & 0xF) == (buffer[sync+3] & 0xF))
                 // repeated packet
-                //printf("repeated packet %d\n", (int)(filter->continuity_counter & 0xF))
+                printf("repeated packet %d\n", (int)(filter->continuity_counter & 0xF))
                   ;
-              else if(((filter->continuity_counter + 1) & 0xF) < (buffer[sync+3] & 0xF))
-              {
-                // lost packet
-                //printf("Lost packet somewhere\n");
-              }
+              /* else if(((filter->continuity_counter + 1) & 0xF) < (buffer[sync+3] & 0xF)) */
+              /* { */
+              /*   // lost packet */
+              /*   printf("Lost packet somewhere\n"); */
+              /*   filter->last = 0; */
+              /* } */
             }
           }
         }
