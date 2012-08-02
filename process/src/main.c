@@ -44,8 +44,6 @@ struct pat_state
 {
   char* pat_buffer;
   size_t pat_size;
-  struct middleware_api_sections_filter* pat_filter;
-  struct middleware_api_sections_filter* pmt_filter;
   unsigned int service_id;
 };
 
@@ -56,7 +54,7 @@ void pmt_callback(const char* buffer, size_t size
   struct pat_state* p = (struct pat_state*)state;
   middleware_api_lifetime_start(p->service_id, p->pat_buffer, p->pat_size
                                 , buffer, size);
-  middleware_api_sections_remove_filter(p->pmt_filter);
+  middleware_api_sections_remove_filter(filter);
 }
 
 void pat_callback(const char* buffer, size_t size
@@ -93,10 +91,8 @@ void pat_callback(const char* buffer, size_t size
       p->pat_size = size;
       p->service_id = service_id;
       memcpy(p->pat_buffer, buffer, size);
-      middleware_api_sections_remove_filter(p->pat_filter);
-      p->pat_filter = 0;
-      p->pmt_filter =
-        middleware_api_sections_create_filter_for_pid(pmt_pid, &pmt_callback, state);
+      middleware_api_sections_remove_filter(filter);
+      middleware_api_sections_create_filter_for_pid_and_table_id(pmt_pid, 0x02, &pmt_callback, state);
     }
   }
   else
@@ -117,17 +113,16 @@ int main(int argc, char** argv)
   int input_fd = middleware_api_input_initialize();
   process_demultiplex_add_fd(input_fd, &middleware_api_input_ready_fd, 0);
 #ifndef MIDDLEWARE_API_IMPL_TS_FILE
-  middleware_api_sections_tune();
+  if(argc <= 1 || strcmp(argv[1], "--no-tune"))
+    middleware_api_sections_tune();
 #else
   middleware_api_sections_initialize();
 #endif
 
   char pat_buffer[4096];
-  struct pat_state pat_state =
-    {pat_buffer, 0u, 0, 0, 0u};
+  struct pat_state pat_state = {pat_buffer, 0u, 0u};
 
-  pat_state.pat_filter = 
-    middleware_api_sections_create_filter_for_pid(0, &pat_callback, &pat_state);
+  middleware_api_sections_create_filter_for_pid(0, &pat_callback, &pat_state);
 
 #ifndef MIDDLEWARE_API_IMPL_TS_FILE
   process_demultiplex_events();
