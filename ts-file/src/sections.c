@@ -396,7 +396,7 @@ then show B and A ..
                     if(skip < payload_size && skip >= 1)
                     {
                       memcpy(&filter->section[filter->section_last]
-                             , &packet_first[4+adaptation_total_length]
+                             , &packet_first[4+adaptation_total_length+1] /* +1 for pointer byte */
                              , skip-1);
                       filter->section_last += skip - 1;
                       middleware_api_sections_notify_callback(filter);
@@ -425,16 +425,12 @@ then show B and A ..
 
                   if(length)
                   {
-                    /* int padding_last = length */
-                    /*   , beggining = sync+4+adaptation_length+skip; */
-                    /* while(padding_last != 0 */
-                    /*       && (unsigned char)buffer[padding_last+beggining-1] == 0xFF) */
-                    /*   --padding_last; */
-                    /* /\* if(padding_last != length) *\/ */
-                    /* /\*   printf("padding %d\n", (int)((length) - padding_last)); *\/ */
-                    /* /\* else if(padding_last) *\/ */
-                    /* /\*   printf("last byte: %d\n", (unsigned char)buffer[padding_last+beggining-1]); *\/ */
-                    /* length = padding_last; */
+                    int padding_last = length
+                      , beggining = sync+4+adaptation_total_length+skip;
+                    while(padding_last != 0
+                          && (unsigned char)buffer[padding_last+beggining-1] == 0xFF)
+                      --padding_last;
+                    length = padding_last;
                   }
 
                   memcpy(&filter->section[filter->section_last]
