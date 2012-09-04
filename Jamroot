@@ -7,6 +7,7 @@
 import feature ;
 
 feature.feature integration-link : shared static : composite link-incompatible ;
+feature.feature internal-ts-file : off on : composite link-incompatible ;
 
 project middleware-api
  : requirements <threading>multi
@@ -26,7 +27,7 @@ lib middleware-api-dvbv5 : dvbv5/src/sections.c middleware-api ;
 explicit middleware-api-dvbv5 ;
 
 lib middleware-api-ts-file : ts-file/src/sections.c middleware-api
- : : : <define>MIDDLEWARE_API_IMPL_TS_FILE
+ : : : <define>MIDDLEWARE_API_IMPL_TS_FILE <internal-ts-file>on
  ;
 explicit middleware-api-ts-file ;
 
@@ -57,3 +58,5 @@ install stage-ts-file : middleware-api-ts-file-process
  : <install-dependencies>on <install-type>EXE <location>stage
  <install-type>SHARED_LIB ;
 explicit stage-ts-file ;
+
+alias stage : stage-ts-file stage-dvbv5 ;
