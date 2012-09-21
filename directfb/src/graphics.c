@@ -67,24 +67,21 @@ middleware_api_graphics_surface* middleware_api_graphics_load_image
  (const char* buffer, size_t size
   , middleware_api_graphics_image_format format)
 {
-  /* const char* filename = 0; */
-  /* switch(format) */
-  /* { */
-  /* case middleware_api_graphics_image_format_jpeg: */
-  /*   filename = "a.jpg"; */
-  /*   break; */
-  /* case middleware_api_graphics_image_format_png: */
-  /*   filename = "a.png"; */
-  /*   break; */
-  /* case middleware_api_graphics_image_format_gif: */
-  /*   filename = "a.gif"; */
-  /*   break; */
-  /* default: */
-  /*   abort(); */
-  /* } */
-  /* IDirectFBImageProvider provider = 0; */
-  /* directfb->CreateImageProvider(directfb, filename, &provider); */
-  return 0;
+  DFBDataBufferDescription ddsc;
+  ddsc.flags = DBDESC_MEMORY;
+  ddsc.file = 0;
+  ddsc.memory.data = (const void*)buffer;
+  ddsc.memory.length = size;
+  IDirectFBDataBuffer* dbuffer = 0;
+  directfb->CreateDataBuffer(directfb, &ddsc, &dbuffer);
+  IDirectFBImageProvider* provider = 0;
+  dbuffer->CreateImageProvider(dbuffer, &provider);
+  DFBSurfaceDescription desc;
+  provider->GetSurfaceDescription(provider, &desc);
+  IDirectFBSurface* surface = 0;
+  directfb->CreateSurface(directfb, &desc, &surface);
+  provider->RenderTo(provider, surface, 0);
+  return surface;
 }
 
 size_t middleware_api_graphics_width(middleware_api_graphics_surface* p)
