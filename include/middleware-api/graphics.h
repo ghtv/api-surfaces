@@ -58,6 +58,10 @@ MIDDLEWARE_API_MANUFACTURER_DECL size_t middleware_api_graphics_width
 MIDDLEWARE_API_MANUFACTURER_DECL size_t middleware_api_graphics_height
  (middleware_api_graphics_surface_t p);
 
+MIDDLEWARE_API_MANUFACTURER_DECL size_t middleware_api_graphics_primary_surface_width();
+
+MIDDLEWARE_API_MANUFACTURER_DECL size_t middleware_api_graphics_primary_surface_height();
+
 #ifdef __cplusplus
 }
 #endif

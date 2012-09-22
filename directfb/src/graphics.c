@@ -31,8 +31,8 @@ void middleware_api_graphics_initialize(int argc, char** argv)
   DFBDisplayLayerConfig config;
   config.flags = 
     (DLCONF_WIDTH | DLCONF_HEIGHT/* | DLCONF_PIXELFORMAT*/ | DLCONF_SURFACE_CAPS/**/ | DLCONF_BUFFERMODE);
-  config.width = 1280;
-  config.height = 720;
+  /* config.width = 1280; */
+  /* config.height = 720; */
   //config.pixelformat = DSPF_ARGB;
   config.surface_caps = (DSCAPS_DOUBLE | DSCAPS_FLIPPING | DSCAPS_PRIMARY);
   config.buffermode = DLBM_BACKVIDEO;
@@ -63,7 +63,7 @@ void middleware_api_graphics_draw_on_primary_surface
   /* DFBRectangle rectangle = {0, 0, 0, 0}; */
   /* source->GetSize(source, &rectangle.w, &rectangle.h); */
   destination->StretchBlit(destination, source, 0, 0);
-  destination->Flip(destination, 0, DSFLIP_BLIT);
+  destination->Flip(destination, 0, DSFLIP_ONSYNC);
 }
 
 void middleware_api_graphics_release_surface(middleware_api_graphics_surface_t p)
@@ -127,4 +127,12 @@ size_t middleware_api_graphics_height(middleware_api_graphics_surface_t p)
   return h;
 }
 
+size_t middleware_api_graphics_primary_surface_width()
+{
+  return middleware_api_graphics_width((middleware_api_graphics_surface_t)primary_surface);
+}
 
+size_t middleware_api_graphics_primary_surface_height()
+{
+  return middleware_api_graphics_height((middleware_api_graphics_surface_t)primary_surface);
+}
