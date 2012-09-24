@@ -21,6 +21,7 @@ extern "C" {
 
 struct middleware_api_graphics_surface;
 typedef struct middleware_api_graphics_surface* middleware_api_graphics_surface_t;
+typedef void(*middleware_api_graphics_primary_surface_draw_callback_t)(middleware_api_graphics_surface_t, void*);
 
 enum middleware_api_graphics_image_format
 {
@@ -29,8 +30,8 @@ enum middleware_api_graphics_image_format
   , middleware_api_graphics_image_format_gif
 };
 
-MIDDLEWARE_API_MANUFACTURER_DECL void middleware_api_graphics_draw_on_primary_surface
- (middleware_api_graphics_surface_t primary);
+MIDDLEWARE_API_MANUFACTURER_DECL void middleware_api_graphics_on_primary_surface_draw
+ (middleware_api_graphics_primary_surface_draw_callback_t callback, void* ud);
 
 MIDDLEWARE_API_MANUFACTURER_DECL middleware_api_graphics_surface_t
  middleware_api_graphics_create_surface

@@ -6,9 +6,12 @@
  */
 
 #include <middleware-api/graphics.h>
+#include <gst/gst.h>
+
 #include <directfb.h>
 
 #include <assert.h>
+#include <cairo.h>
 
 struct middleware_api_graphics_surface;
 typedef struct middleware_api_graphics_surface middleware_api_graphics_surface;
@@ -16,6 +19,10 @@ typedef enum middleware_api_graphics_image_format middleware_api_graphics_image_
 
 IDirectFB* directfb;
 static IDirectFBSurface* primary_surface;
+static middleware_api_graphics_primary_surface_draw_callback_t callback;
+static void* callback_ud;
+
+gboolean video_sink_init(GstPlugin* plugin);
 
 void middleware_api_graphics_initialize(int argc, char** argv)
 {
@@ -23,6 +30,18 @@ void middleware_api_graphics_initialize(int argc, char** argv)
   assert(primary_surface == 0);
 
   DirectFBInit(&argc, &argv);
+  gst_init(&argc, &argv);
+
+  gst_plugin_register_static(GST_VERSION_MAJOR
+                             , GST_VERSION_MINOR
+                             , "ghtv_video_sink"
+                             , "Some description"
+                             , &video_sink_init
+                             , "1.0"
+                             , "Proprietary"
+                             , "XXX"
+                             , "XXX", "XXX");
+
   DirectFBCreate(&directfb);
 
   IDirectFBDisplayLayer* display_layer = 0;
@@ -46,24 +65,20 @@ middleware_api_graphics_surface_t middleware_api_graphics_create_surface
 {
   DFBSurfaceDescription description;
   memset(&description, 0, sizeof(description));
-  description.flags  = DSDESC_WIDTH | DSDESC_HEIGHT;
+  description.flags  = DSDESC_WIDTH | DSDESC_HEIGHT | DLCONF_PIXELFORMAT;
   description.width = width;
   description.height = height;
+  description.pixelformat = DSPF_ARGB;
   IDirectFBSurface* surface = 0;
   directfb->CreateSurface(directfb, &description, &surface);
   return (middleware_api_graphics_surface_t)surface;
 }
 
-void middleware_api_graphics_draw_on_primary_surface
- (middleware_api_graphics_surface_t primary)
+void middleware_api_graphics_on_primary_surface_draw
+ (middleware_api_graphics_primary_surface_draw_callback_t c, void* ud)
 {
-  IDirectFBSurface* destination = (IDirectFBSurface*)primary_surface;
-  IDirectFBSurface* source = (IDirectFBSurface*)primary;
-  /* destination->SetBlittingFlags(destination, DSBLIT_BLEND_ALPHACHANNEL); */
-  /* DFBRectangle rectangle = {0, 0, 0, 0}; */
-  /* source->GetSize(source, &rectangle.w, &rectangle.h); */
-  destination->StretchBlit(destination, source, 0, 0);
-  destination->Flip(destination, 0, DSFLIP_ONSYNC);
+  callback = c;
+  callback_ud = ud;
 }
 
 void middleware_api_graphics_release_surface(middleware_api_graphics_surface_t p)
@@ -135,4 +150,13 @@ size_t middleware_api_graphics_primary_surface_width()
 size_t middleware_api_graphics_primary_surface_height()
 {
   return middleware_api_graphics_height((middleware_api_graphics_surface_t)primary_surface);
+}
+
+void middleware_api_graphics_draw_frame()
+{
+  if(callback)
+  {
+    callback((middleware_api_graphics_surface_t)primary_surface, callback_ud);
+    primary_surface->Flip(primary_surface, 0, DSFLIP_ONSYNC);
+  }
 }

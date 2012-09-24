@@ -16,7 +16,8 @@ project middleware-api
 alias middleware-api : : : : <include>include ;
 
 lib middleware-api-directfb : directfb/src/graphics.c directfb/src/input.c
- middleware-api /dfb//dfb
+ directfb/src/gstreamer.c
+ middleware-api /dfb//dfb /cairo//cairo /gst//gst
  ;
 explicit middleware-api-directfb ;
 

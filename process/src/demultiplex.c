@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
+#include <time.h>
+#include <signal.h>
 
 static int epoll_instance;
 
@@ -72,26 +74,78 @@ void process_demultiplex_add_fd(int fd, process_demultiplex_callback callback, v
   }
 }
 
+static int timer_expired = 0;
+
+static void timer_expired_f(int sig, siginfo_t* si, void *uc)
+{
+  timer_expired = 1;
+}
+
+void middleware_api_graphics_draw_frame();
+
 void process_demultiplex_events()
 {
+#ifndef _POSIX_THREAD_CPUTIME
+#error _POSIX_THREAD_CPUTIME is required
+#endif
+  struct sigaction sa;
+  sa.sa_flags = SA_SIGINFO;
+  sa.sa_sigaction = &timer_expired_f;
+  sigaction(SIGRTMIN, &sa, 0);
+
+  timer_t timer_id;
+  struct sigevent se;
+  se.sigev_notify = SIGEV_SIGNAL;
+  se.sigev_signo = SIGRTMIN;
+  int r = timer_create(CLOCK_REALTIME, &se, &timer_id);
+  assert(r ==0 );
+
+  struct itimerspec its;
+  its.it_interval.tv_sec = 0;
+  its.it_interval.tv_nsec = 16666666;
+  its.it_value.tv_sec = 0;
+  its.it_value.tv_nsec = 16666666;
+  timer_settime(timer_id, 0, &its, 0);
+  
+  sigset_t sigmask;
+  sigemptyset(&sigmask);
+  sigaddset(&sigmask, SIGRTMIN);
+  struct timespec start_tm;
+  clock_gettime(CLOCK_REALTIME, &start_tm);
+  int fps = 0;
   do
   {
-    struct epoll_event events[10];
-    int r = epoll_wait(epoll_instance, &events[0], 1, -1);
-    //printf("Returned from epoll_wait return %d\n", r);
-    if(r == 1)
+    do
     {
-      //printf("calling callback\n");
-      struct process_demultiplex_event_data* data
-        = (struct process_demultiplex_event_data*)events[0].data.ptr;
-      assert(data != 0);
-      data->callback(data->fd, data->state);
+      struct epoll_event events[10];
+      int r = epoll_wait(epoll_instance, &events[0], 1, 0);
+      if(r == 1)
+      {
+        struct process_demultiplex_event_data* data
+          = (struct process_demultiplex_event_data*)events[0].data.ptr;
+        assert(data != 0);
+        data->callback(data->fd, data->state);
+      }
+      else if(r == -1)
+      {
+        printf("Error calling epoll_wait with error %d and errno %d\n", r, errno);
+        printf("epoll_instance %d\n", epoll_instance);
+        break;
+      }
     }
-    else if(r == -1)
+    while(!timer_expired);
+    timer_expired = 0;
+
+    middleware_api_graphics_draw_frame();
+    ++fps;
+
+    struct timespec tm;
+    clock_gettime(CLOCK_REALTIME, &tm);
+    if(tm.tv_sec - start_tm.tv_sec)
     {
-      printf("Error calling epoll_wait with error %d and errno %d\n", r, errno);
-      printf("epoll_instance %d\n", epoll_instance);
-      break;
+      printf("FPS: %d\n", fps);
+      fps = 0;
+      start_tm = tm;
     }
   }
   while(1);

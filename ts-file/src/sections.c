@@ -158,11 +158,11 @@ static void middleware_api_sections_notify_callback(middleware_api_sections_filt
   /* { */
   if(filter->section_last)
   {
-    printf("There was a packet %d\n"
-           , (int)filter->section_last);
+    /* printf("There was a packet %d\n" */
+    /*        , (int)filter->section_last); */
     if((filter->section[1] & 0xB0) == 0xB0)
     {
-      printf("Well formed section\n");
+      /* printf("Well formed section\n"); */
       // 13818-2 2.4.4.11
 
 /* #ifndef NDEBUG */
@@ -199,15 +199,15 @@ static void middleware_api_sections_notify_callback(middleware_api_sections_filt
 /*                         // filter->section_first = start-of-packet */
 /*                         // section_last = past-the-end-of-packet */
 
-      printf("table_id_size %d\n", (int)filter->table_id_size);
+      /* printf("table_id_size %d\n", (int)filter->table_id_size); */
       if(filter->table_id_size == 0
          || (filter->table_id_size == 1
              && filter->table_id[0]
              == filter->section[0]))
       {
-        printf("table_id: %d expected %d\n"
-               , (int)filter->table_id[0]
-               , (int)filter->section[0]);
+        /* printf("table_id: %d expected %d\n" */
+        /*        , (int)filter->table_id[0] */
+        /*        , (int)filter->section[0]); */
         
         int i = 0;
         for(; i != MIDDLEWARE_API_SECTIONS_CALLBACK_SIZE
@@ -252,23 +252,7 @@ void middleware_api_sections_read()
 
       if((offset + r) - sync >= MIDDLEWARE_API_SECTIONS_PACKET_SIZE)
       {
-        printf("packet %d\n", ++packet_number);
-        /** proof
-
-theory Walkthrough imports Main begin
-
-theorem other_theorem: "B & A \<longrightarrow> A & B
-
-proof
-  assume "B & A"
-
-then obtain A and B ..
-
-then show B and A ..
-
-
-**/
-
+        /* printf("packet %d\n", ++packet_number); */
         // pre-condition: buffer[sync] = 0x47 ^ (offset + r) - sync >= 188
         int filter_index = 0;
         for(; filter_index != MIDDLEWARE_API_SECTIONS_FILTER_SIZE
@@ -290,7 +274,7 @@ then show B and A ..
           if(!section_filters[filter_index].unused
              && section_filters[filter_index].pid == pid)
           {
-            printf("Pid we care about %d\n", (int)pid);
+            /* printf("Pid we care about %d\n", (int)pid); */
 
             // filtering-packet = buffer[sync : sync + 188]
 
@@ -328,6 +312,16 @@ then show B and A ..
             // S_{3} = (rp f), rps := (rp f)[(suc (rps f)):= p], rps[f:= (suc (rps f))]
             
             int cc_packet = (packet_first[3] & 0xF);
+            /* printf("MIDDLEWARE_API_SECTIONS_RPS(filter) >= 2: %d\n" */
+            /*        , (int)(MIDDLEWARE_API_SECTIONS_RPS(filter) >= 2)); */
+            /* printf("MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)) %d\n", (int)MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter))); */
+            /* printf("(cc_packet == MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)) %d\n" */
+            /*          , (int)(cc_packet == MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)))); */
+            /*          printf("MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)-1)\n" */
+            /*          " == MIDDLEWARE_API_SECTIONS_SUC_CC\n" */
+            /*          "(MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)))) %d\n", (int)MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)-1) */
+            /*        == MIDDLEWARE_API_SECTIONS_SUC_CC */
+            /*   (MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)))); */
             if(MIDDLEWARE_API_SECTIONS_RPS(filter) >= 2
                && (cc_packet == MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter))
                    && MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)-1)
@@ -353,12 +347,15 @@ then show B and A ..
               //    = past-the-end section buffer
 
 
-              printf("Should filter based on sequence %d %d or because we're starting a new packet %d\n"
-                     , (int)(MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)))
-                     , (int)(cc_packet)
-                     , (int)(packet_first[1] & 0x40)?1:0);
+              /* printf("Should filter based on sequence %d %d or because we're starting a new packet %d\n" */
+              /*        , (int)(MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter))) */
+              /*        , (int)(cc_packet) */
+              /*        , (int)(packet_first[1] & 0x40)?1:0); */
 
               MIDDLEWARE_API_SECTIONS_PUSH_RP(filter, packet_first);
+
+              /* printf("Filtered %d\n" */
+              /*        , (int)(MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)))); */
 
               int adaptation_total_length = 0;
               if(packet_first[3] & 0x20)
@@ -366,7 +363,7 @@ then show B and A ..
               if((packet_first[3] & 0x30 && adaptation_total_length <= 183)
                  || adaptation_total_length <= 184)
               {
-                printf("adaptation_total_length makes sense\n");
+                /* printf("adaptation_total_length makes sense\n"); */
                 int payload_size = 184 - adaptation_total_length;
 
                 assert(payload_size + adaptation_total_length == 184);
@@ -385,13 +382,13 @@ then show B and A ..
 
                 if(packet_first[1] & 0x40)
                 {
-                  printf("treat pointer\n");
+                  /* printf("treat pointer\n"); */
                   unsigned char skip_c = packet_first[4+adaptation_total_length] + 1;
                   skip = skip_c;
 
                   if(filter->section_last)
                   {
-                    printf("Is first and is last\n");
+                    /* printf("Is first and is last\n"); */
 
                     if(skip < payload_size && skip >= 1)
                     {
@@ -401,8 +398,8 @@ then show B and A ..
                       filter->section_last += skip - 1;
                       middleware_api_sections_notify_callback(filter);
                     }
-                    else
-                      printf("Malformed skip\n");
+                    /* else */
+                    /*   printf("Malformed skip\n"); */
                     filter->section_last = 0;
                   }
                 }
@@ -410,8 +407,8 @@ then show B and A ..
                 assert(filter->section_last <= sizeof(filter->section));
                 if(skip < payload_size)
                 {
-                  printf("skip(%d) < payload_size(%d)\n"
-                         , (int)skip, (int)payload_size);
+                  /* printf("skip(%d) < payload_size(%d)\n" */
+                  /*        , (int)skip, (int)payload_size); */
                   /* printf("filter->last: %d\n", filter->last); */
 
                   int length = sizeof(filter->section) - filter->section_last
@@ -419,7 +416,7 @@ then show B and A ..
                     ? sizeof(filter->section) - filter->section_last
                     : payload_size - skip;
 
-                  printf("length: %d\n", length);
+                  /* printf("length: %d\n", length); */
 
                   /* assert(length == payload_size-skip); */
 
@@ -428,7 +425,7 @@ then show B and A ..
                     int padding_last = length
                       , beggining = sync+4+adaptation_total_length+skip;
                     while(padding_last != 0
-                          && (unsigned char)buffer[padding_last+beggining-1] == 0xFF)
+                          && (unsigned char)buffer[padding_last+beggining] == 0xFF)
                       --padding_last;
                     length = padding_last;
                   }
@@ -456,7 +453,7 @@ then show B and A ..
             }
             else
             {
-              printf("======== Discontinuity\n");
+              /* printf("======== Discontinuity\n"); */
               filter->packets = 0;
               filter->section_last = 0;
             }
