@@ -220,6 +220,23 @@ static void middleware_api_sections_notify_callback(middleware_api_sections_filt
         }
       }
     }
+    else
+    {
+      uint32_t packet_start_code_prefix = 0;
+      ((char*)&packet_start_code_prefix)[2] = filter->section[0];
+      ((char*)&packet_start_code_prefix)[1] = filter->section[1];
+      ((char*)&packet_start_code_prefix)[0] = filter->section[2];
+      /* printf("packet_start_code_prefix %d\n", (int)packet_start_code_prefix); */
+      if(packet_start_code_prefix == 1)
+      {
+        /* printf("PES packet %X\n", (unsigned int)(unsigned char)filter->section[3]); */
+        if((unsigned int)(unsigned char)filter->section[3] == 0xE0)
+        {
+          printf("ITU-T Rec. H.262 video stream\n");
+          
+        }
+      }
+    }
   }
   
 }
@@ -359,11 +376,11 @@ void middleware_api_sections_read()
 
               int adaptation_total_length = 0;
               if(packet_first[3] & 0x20)
-                adaptation_total_length += (unsigned char)packet_first[4] + 1;
+                adaptation_total_length += (unsigned char)packet_first[4];
               if((packet_first[3] & 0x30 && adaptation_total_length <= 183)
                  || adaptation_total_length <= 184)
               {
-                /* printf("adaptation_total_length makes sense\n"); */
+                /* printf("adaptation_total_length makes sense %d\n", (int)adaptation_total_length); */
                 int payload_size = 184 - adaptation_total_length;
 
                 assert(payload_size + adaptation_total_length == 184);
