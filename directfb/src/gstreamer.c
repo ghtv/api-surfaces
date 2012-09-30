@@ -6,6 +6,7 @@
  */
 
 #include <middleware-api/graphics.h>
+#include <middleware-api/sections.h>
 #include <gst/gst.h>
 #include <gst/video/gstvideosink.h>
 #include <gst/interfaces/navigation.h>
@@ -297,3 +298,122 @@ gboolean video_sink_init(GstPlugin* plugin)
 
   return TRUE;
 }
+
+void middleware_api_video_sections(const char* original_buffer, size_t size
+                                   , middleware_api_sections_filter_t filter
+                                   , void* state)
+{
+  uint8_t alignment = 0;
+  const char* buffer = original_buffer;
+  while(size != 0)
+  {
+    assert(buffer[0] == 0);
+    assert(buffer[1] == 0);
+    assert(buffer[2] == 1);
+
+    uint8_t stream_id = buffer[3];
+    /* if(stream_id == 6) */
+    /*   return; */
+
+    uint16_t pes_packet_length = 0;
+    ((char*)&pes_packet_length)[1] = buffer[4];
+    ((char*)&pes_packet_length)[0] = buffer[5];
+
+    printf("stream id: %d pes packet length %d\n", (int)stream_id
+           , (int)pes_packet_length);
+
+    if(!alignment || (stream_id != 9 && stream_id != 6))
+    {
+    assert(((unsigned char)buffer[6] & 0xC0) == 0x80);
+
+    alignment = (((unsigned char)buffer[6]) >> 2) & 1;
+    printf("alignment %d\n", (int)alignment);
+    uint8_t pts_dts_flags = (((unsigned char)buffer[7]) >> 6) & 3;
+    uint8_t escr_flag = (((unsigned char)buffer[7]) >> 5) & 1;
+    uint8_t es_rate_flag = (((unsigned char)buffer[7]) >> 4) & 1;
+    uint8_t dsm_trick_mode_flag = (((unsigned char)buffer[7]) >> 3) & 1;
+    uint8_t additional_copy_info_flag = (((unsigned char)buffer[7]) >> 2) & 1;
+    uint8_t pes_crc_flag = (((unsigned char)buffer[7]) >> 1) & 1;
+    uint8_t pes_extension_flag = ((unsigned char)buffer[7]) & 1;
+    uint8_t pes_header_data_length = (unsigned char)buffer[8];
+
+    printf("pes_header_data_length: %d\n", (int)pes_header_data_length);
+    
+    int off = 10, start = 10;
+    /* int off_payload = 9 + pes_header_data_length; */
+    /* int payload_size = size-off; */
+
+    /* printf("PES buffer size %d\n", (int)payload_size); */
+
+    int data_bytes_consumed = 0;
+
+    if(pts_dts_flags != 0)
+    {
+      printf("pts_dts_flags: %d\n", pts_dts_flags);
+      off += 5;
+      data_bytes_consumed += 5;
+      if(pts_dts_flags == 3)
+      {
+        off += 5;
+        data_bytes_consumed += 5;
+      }
+    }
+    else
+      return;
+    if(escr_flag)
+    {
+      printf("escr_flags\n");
+      off += 6;
+      data_bytes_consumed += 6;
+    }
+    if(es_rate_flag)
+    {
+      printf("e_rate_flags\n");
+      off += 3;
+      data_bytes_consumed += 3;
+    }
+    if(dsm_trick_mode_flag)
+    {
+      printf("dsm_trick_mode_flag\n");
+      off++;
+      data_bytes_consumed++;
+    }
+    if(additional_copy_info_flag)
+    {
+      printf("additional_copy_info_flag\n");
+      off++;
+      data_bytes_consumed++;
+    }
+    if(pes_crc_flag)
+    {
+      printf("pes_crc_flag\n");
+      off += 2;
+      data_bytes_consumed += 2;
+    }
+    if(pes_extension_flag)
+    {
+      printf("pes_extension_flag\n");
+    }
+
+    printf("data_bytes_consumed: %d\nsize %d\n", (int)data_bytes_consumed, pes_header_data_length - data_bytes_consumed);
+    
+    printf("middleware_api_video_sections\n");
+
+    int o = open("pes-packet.264", O_RDWR | O_APPEND);
+    assert(o != -1);
+    write(o, &buffer[start], size-start - data_bytes_consumed);
+    close(o);
+    assert (size >= start + data_bytes_consumed);
+
+    size -= start + data_bytes_consumed;
+    buffer += start + data_bytes_consumed;
+    }
+    else
+    {
+      assert(alignment != 0);
+      size -= 6;
+      buffer += 6;
+    }
+  }
+}
+

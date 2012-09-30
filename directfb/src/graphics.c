@@ -58,6 +58,11 @@ void middleware_api_graphics_initialize(int argc, char** argv)
   display_layer->SetConfiguration(display_layer, &config);
   
   display_layer->GetSurface(display_layer, &primary_surface);
+
+  GstElement* pipeline = gst_pipeline_new(0);
+  GstElement* sink_pipeline = gst_pipeline_new(0);
+  GstElement* decode = gst_element_factory_make("playbin2", 0);
+  assert(decode != 0);
 }
 
 middleware_api_graphics_surface_t middleware_api_graphics_create_surface

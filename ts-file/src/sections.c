@@ -24,7 +24,7 @@ typedef void(*process_demultiplex_callback)(int, void*);
 #define MIDDLEWARE_API_SECTIONS_CALLBACK_SIZE 16
 #define MIDDLEWARE_API_SECTIONS_TABLE_ID_SIZE 16
 #define MIDDLEWARE_API_SECTIONS_PACKET_SIZE 188
-#define MIDDLEWARE_API_SECTIONS_SECTION_SIZE 4096
+/* #define MIDDLEWARE_API_SECTIONS_SECTION_SIZE 8192 */
 #define MIDDLEWARE_API_SECTIONS_RPS(filter) (filter->packets)
 #define MIDDLEWARE_API_SECTIONS_CC_RP(filter, n)                        \
   (n == filter->packets? filter->continuity_counter[1] : filter->continuity_counter[2])
@@ -36,7 +36,7 @@ typedef void(*process_demultiplex_callback)(int, void*);
 
 struct middleware_api_sections_filter
 {
-  char section[MIDDLEWARE_API_SECTIONS_SECTION_SIZE*2];
+  char section[65535];
   unsigned int section_last;
   unsigned int packets;
   uint8_t continuity_counter[2];
@@ -229,11 +229,14 @@ static void middleware_api_sections_notify_callback(middleware_api_sections_filt
       /* printf("packet_start_code_prefix %d\n", (int)packet_start_code_prefix); */
       if(packet_start_code_prefix == 1)
       {
-        /* printf("PES packet %X\n", (unsigned int)(unsigned char)filter->section[3]); */
-        if((unsigned int)(unsigned char)filter->section[3] == 0xE0)
+        int i = 0;
+        for(; i != MIDDLEWARE_API_SECTIONS_CALLBACK_SIZE
+              && filter->callbacks[i]; ++i)
         {
-          printf("ITU-T Rec. H.262 video stream\n");
-          
+          printf("callbacks: %p\n", (void*)filter->callbacks[i]);
+          filter->callbacks[i](&filter->section[0]
+                               , filter->section_last
+                               , filter, filter->states[0]);
         }
       }
     }
@@ -409,6 +412,9 @@ void middleware_api_sections_read()
 
                     if(skip < payload_size && skip >= 1)
                     {
+                      /* printf("filter->section_last + skip - 1: %d\n" */
+                      /*        , (int)filter->section_last + skip - 1); */
+                      assert(filter->section_last + skip - 1 <= 65535);
                       memcpy(&filter->section[filter->section_last]
                              , &packet_first[4+adaptation_total_length+1] /* +1 for pointer byte */
                              , skip-1);
