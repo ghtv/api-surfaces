@@ -30,6 +30,10 @@ MIDDLEWARE_API_MANUFACTURER_DECL middleware_api_sections_filter_t
  (uint16_t pid, middleware_api_sections_filter_callback_t callback, void* state);
 
 MIDDLEWARE_API_MANUFACTURER_DECL middleware_api_sections_filter_t
+ middleware_api_sections_create_pes_filter_for_pid
+ (uint16_t pid, middleware_api_sections_filter_callback_t callback, void* state);
+
+MIDDLEWARE_API_MANUFACTURER_DECL middleware_api_sections_filter_t
  middleware_api_sections_create_filter_for_pid_and_table_id 
  (uint16_t pid, uint8_t table_id, middleware_api_sections_filter_callback_t callback
   , void* state);

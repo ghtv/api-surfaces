@@ -199,6 +199,12 @@ create_filter_for_params(struct dmx_sct_filter_params p
   return result;
 }
 
+middleware_api_sections_filter* middleware_api_sections_create_pes_filter_for_pid
+(uint16_t pid, middleware_api_sections_filter_callback_t callback, void* state)
+{
+  abort();
+}
+
 middleware_api_sections_filter* middleware_api_sections_create_filter_for_pid
 (uint16_t pid, middleware_api_sections_filter_callback_t callback, void* state)
 {

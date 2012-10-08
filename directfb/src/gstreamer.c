@@ -17,6 +17,8 @@
 #include <assert.h>
 #include <cairo.h>
 
+#include <stdlib.h>
+
 GST_DEBUG_CATEGORY_STATIC (ghtv_video_sink_debug);
 
 GType gst_ghtv_video_sink_get_type ();
@@ -299,31 +301,31 @@ gboolean video_sink_init(GstPlugin* plugin)
   return TRUE;
 }
 
-void middleware_api_video_sections(const char* original_buffer, size_t size
+void middleware_api_video_sections(const char* original_buffer, size_t original_size
                                    , middleware_api_sections_filter_t filter
                                    , void* state)
 {
+  size_t size = original_size;
   uint8_t alignment = 0;
-  const char* buffer = original_buffer;
-  while(size != 0)
-  {
+  const unsigned char* buffer = (const unsigned char*)original_buffer;
+  /* while(size != 0) */
+  /* { */
     assert(buffer[0] == 0);
     assert(buffer[1] == 0);
     assert(buffer[2] == 1);
 
     uint8_t stream_id = buffer[3];
-    /* if(stream_id == 6) */
-    /*   return; */
 
     uint16_t pes_packet_length = 0;
     ((char*)&pes_packet_length)[1] = buffer[4];
     ((char*)&pes_packet_length)[0] = buffer[5];
 
-    printf("stream id: %d pes packet length %d\n", (int)stream_id
-           , (int)pes_packet_length);
+    printf("stream id: %d pes packet length %d real length: %d\n", (int)stream_id
+           , (int)pes_packet_length, (int)size);
+    assert(stream_id == 0xe0);
 
-    if(!alignment || (stream_id != 9 && stream_id != 6))
-    {
+    /* if(!alignment || (stream_id != 9 && stream_id != 6)) */
+    /* { */
     assert(((unsigned char)buffer[6] & 0xC0) == 0x80);
 
     alignment = (((unsigned char)buffer[6]) >> 2) & 1;
@@ -339,7 +341,7 @@ void middleware_api_video_sections(const char* original_buffer, size_t size
 
     printf("pes_header_data_length: %d\n", (int)pes_header_data_length);
     
-    int off = 10, start = 10;
+    int off = 9, start = 9;
     /* int off_payload = 9 + pes_header_data_length; */
     /* int payload_size = size-off; */
 
@@ -399,21 +401,147 @@ void middleware_api_video_sections(const char* original_buffer, size_t size
     
     printf("middleware_api_video_sections\n");
 
-    int o = open("pes-packet.264", O_RDWR | O_APPEND);
-    assert(o != -1);
-    write(o, &buffer[start], size-start - data_bytes_consumed);
-    close(o);
     assert (size >= start + data_bytes_consumed);
 
+    assert(buffer == original_buffer);
+    assert(size == original_size);
     size -= start + data_bytes_consumed;
     buffer += start + data_bytes_consumed;
-    }
-    else
+
+    // feed gstreamer
     {
-      assert(alignment != 0);
-      size -= 6;
-      buffer += 6;
+      
     }
-  }
+
+    /* {     */
+    /*   uint8_t c[4] = {0, 0, 1, 0xe0}; */
+    /*   int i = 0, j = 0; */
+    /*   while(i != size) */
+    /*   { */
+    /*     int in = i; */
+    /*     while(in != size && j != sizeof(c)) */
+    /*     { */
+    /*       if(buffer[in] != c[j]) */
+    /*         break; */
+    /*       ++in; ++j; */
+    /*     } */
+    /*     if(j == sizeof(c)) */
+    /*     { */
+    /*       printf("Has 00 00 01 e0 pos: %d\n", (int)i); */
+    /*       assert(in - i >= sizeof(c)); */
+    /*       assert(buffer[in-4] == c[0]); */
+    /*       assert(buffer[in-4] == 0); */
+    /*       assert(buffer[in-3] == c[1]); */
+    /*       assert(buffer[in-3] == 0); */
+    /*       assert(buffer[in-2] == c[2]); */
+    /*       assert(buffer[in-2] == 1); */
+    /*       assert(buffer[in-1] == c[3]); */
+    /*       assert(buffer[in-1] == 224); */
+    /*       abort(); */
+    /*     } */
+    /*     else */
+    /*       j = 0; */
+    /*     ++i; */
+    /*   } */
+    /* } */
+
+    
+  /*   int o = open("pes-packet.264", O_RDWR | O_APPEND); */
+  /*   assert(o != -1); */
+  /*   write(o, &buffer[0], size); */
+  /*   assert((char*)buffer - original_buffer == original_size - size); */
+  /*   close(o); */
+
+  /*   do */
+  /*   { */
+  /*     buffer += 4; */
+  /*     // 14496-10 pg. 30 & pg. 48 */
+  /*     unsigned char first_byte = buffer[0]; */
+  /*     uint8_t nal_ref_idc = (int)((first_byte >> 5) & 0x3); */
+  /*     uint8_t nal_unit_type = (first_byte & 0x1F); */
+  /*     printf("first_byte: %d\n", (unsigned int)(unsigned char)first_byte); */
+  /*     printf("forbidden_zero_bit: %d\n", (int)(first_byte >> 7)); */
+  /*     printf("nal_ref_idc: %d\n", (int)nal_ref_idc); */
+  /*     printf("nal_unit_type: %d\n", (int)nal_unit_type); */
+
+  /*     ++buffer; */
+  /*     // access_unit_delimiter_rbsp */
+  /*     if(nal_unit_type == 9) */
+  /*     { */
+  /*       printf("access_unit_delimiter_rbsp %d\n", (unsigned int)(unsigned char)buffer[0]); */
+  /*       uint8_t primary_pic_type = ((unsigned char)buffer[0]) >> 5; */
+  /*       switch(primary_pic_type) */
+  /*       { */
+  /*       case 0: */
+  /*         printf("primary_pic_type: I\n"); */
+  /*         break; */
+  /*       case 1: */
+  /*         printf("primary_pic_type: I,P\n"); */
+  /*         break; */
+  /*       case 2: */
+  /*         printf("primary_pic_type: I,P,B\n"); */
+  /*         break; */
+  /*       case 3: */
+  /*         printf("primary_pic_type: SI\n"); */
+  /*         break; */
+  /*       case 4: */
+  /*         printf("primary_pic_type: SI,SP\n"); */
+  /*         break; */
+  /*       case 5: */
+  /*         printf("primary_pic_type: I,SI\n"); */
+  /*         break; */
+  /*       case 6: */
+  /*         printf("primary_pic_type: I,SI,P,SP\n"); */
+  /*         break; */
+  /*       case 7: */
+  /*         printf("primary_pic_type: I,SI,P,SP,B\n"); */
+  /*         break; */
+  /*       default: */
+  /*         abort(); */
+  /*       }; */
+  /*       ++buffer; */
+  /*     } */
+  /*     // sei_rbsp */
+  /*     else if(nal_unit_type == 6) */
+  /*     { */
+  /*       printf("sei_rbsp\n"); */
+  /*       //do while */
+  /*       // sei_message */
+  /*       while(((unsigned char)*buffer) == 0xFF) */
+  /*         ++buffer; */
+  /*       printf("last_payload_type %d\n", (unsigned int)(unsigned char)buffer[0]); */
+  /*       ++buffer; */
+  /*       unsigned int size = 0; */
+  /*       while((unsigned char)*buffer == 0xFF) */
+  /*       { */
+  /*         size += 0xFF; */
+  /*         ++buffer; */
+  /*       } */
+  /*       size += buffer[0]; */
+  /*       printf("payload size: %d\n", size); */
+  /*       ++buffer; */
+  /*       buffer += size; */
+  /*     } */
+  /*     // slice_layer_without_partitioning_rbsp */
+  /*     else if(nal_unit_type == 1 || nal_unit_type == 5) */
+  /*     { */
+  /*       break; */
+  /*     } */
+  /*     else */
+  /*     { */
+  /*       printf("unknown nal_unit_type: %d\n", nal_unit_type); */
+  /*       break; */
+  /*     } */
+  /*   } */
+  /*   while(size != 0); */
+    
+  /*   /\* } *\/ */
+  /*   /\* else *\/ */
+  /*   /\* { *\/ */
+  /*   /\*   assert(alignment != 0); *\/ */
+  /*   /\*   size -= 6; *\/ */
+  /*   /\*   buffer += 6; *\/ */
+  /*   /\* } *\/ */
+  /* /\* } *\/ */
 }
 
