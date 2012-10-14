@@ -95,8 +95,8 @@ void pmt_callback(const char* buffer, size_t size
   p->audio_pid = audio_pid;
   p->video_pid = video_pid;
 
-  /* middleware_api_sections_create_filter_for_pid */
-  /*   (video_pid, &middleware_api_video_sections, 0); */
+  middleware_api_sections_create_pes_filter_for_pid
+    (video_pid, &middleware_api_video_sections, 0);
 
   middleware_api_lifetime_start(p->service_id, p->pat_buffer, p->pat_size
                                 , buffer, size);
@@ -169,14 +169,12 @@ int main(int argc, char** argv)
   struct pat_state pat_state = {pat_buffer, 0u, 0u};
 
   middleware_api_sections_create_filter_for_pid(0, &pat_callback, &pat_state);
-  middleware_api_sections_create_pes_filter_for_pid
-    (513, &middleware_api_video_sections, 0);
 
 #ifndef MIDDLEWARE_API_IMPL_TS_FILE
   process_demultiplex_events();
 #else
-  pthread_t thread;
-  pthread_create(&thread, 0, &demultiplex_thread, 0);
+  /* pthread_t thread; */
+  /* pthread_create(&thread, 0, &demultiplex_thread, 0); */
 
   middleware_api_sections_read();
 #endif

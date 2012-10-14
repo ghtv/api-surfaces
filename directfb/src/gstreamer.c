@@ -8,9 +8,11 @@
 #include <middleware-api/graphics.h>
 #include <middleware-api/sections.h>
 #include <gst/gst.h>
+#include <gst/gstversion.h>
+#include <gst/base/gstpushsrc.h>
 #include <gst/video/gstvideosink.h>
-#include <gst/interfaces/navigation.h>
-#include <gst/interfaces/colorbalance.h>
+//#include <gst/interfaces/navigation.h>
+//#include <gst/interfaces/colorbalance.h>
 
 #include <directfb.h>
 
@@ -35,13 +37,19 @@ static GstStaticPadTemplate gst_ghtv_video_sink_sink_template_factory =
     GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
-    GST_STATIC_CAPS ("video/x-raw-rgb, "
-        "framerate = (fraction) [ 0, MAX ], "
-        "width = (int) [ 1, MAX ], "
-        "height = (int) [ 1, MAX ]; "
-        "video/x-raw-yuv, "
-        "framerate = (fraction) [ 0, MAX ], "
-        "width = (int) [ 1, MAX ], " "height = (int) [ 1, MAX ]")
+    GST_STATIC_CAPS (
+#if GST_VERSION_MAJOR == 0
+                     "video/x-raw-rgb, "
+#else
+                     "video/x-raw, format=(string) RGB, "
+#endif
+                     "red_mask=(int)65280, green_mask=(int)16711680, blue_mask=(int)-16777216, "
+                     "framerate = (fraction) [ 0, MAX ], "
+                     "bpp = 32, "
+                     "depth = 24, "
+                     "width = (int) [ 1, MAX ], "
+                     "height = (int) [ 1, MAX ]; "
+                     )
     );
 
 typedef void(*callback_type)(void*);
@@ -63,25 +71,37 @@ typedef struct ghtv_video_sink ghtv_video_sink;
 
 GstFlowReturn video_sink_render(ghtv_video_sink* self, GstBuffer* buf)
 {
+  /* printf("video_sink_render\n"); */
   if(self->surface)
   {
-    GstStructure* structure = gst_caps_get_structure (GST_BUFFER_CAPS (buf), 0);
-    gint w = 0, h = 0;
-    if (structure)
-    {
-      gst_structure_get_int (structure, "width", &w);
-      gst_structure_get_int (structure, "height", &h);
-    }
+    /* GstStructure* structure = gst_caps_get_structure (GST_BUFFER_CAPS (buf), 0); */
+    gint w = self->video_width, h = self->video_height;
+    /* if (structure) */
+    /* { */
+    /*   gst_structure_get_int (structure, "width", &w); */
+    /*   gst_structure_get_int (structure, "height", &h); */
+    /* } */
+    assert(w != 0 && h != 0);
 
+    /* printf("width %d and height %d\n", (int)w, (int)h); */
+
+    /* printf("surface: %p\n", self->surface); */
     if(self->pre_render_callback)
       self->pre_render_callback(self->callback_data);
 
     assert(self->surface != 0);
     void* data = 0;
-    int dest_pitch = 0, src_pitch = GST_BUFFER_SIZE(buf)/h;
+    int dest_pitch = 0;
     self->surface->Lock(self->surface, DSLF_WRITE, &data, &dest_pitch);
+    
+#if GST_VERSION_MAJOR == 0
+    int src_pitch = GST_BUFFER_SIZE(buf)/h;
+#else
+    int src_pitch = gst_buffer_get_sizes(buf, NULL, NULL)/h;
+#endif
 
     int pitch = MIN(dest_pitch, src_pitch);
+#if GST_VERSION_MAJOR == 0
     guint8* current = GST_BUFFER_DATA (buf);
 
     int i = 0;
@@ -91,7 +111,16 @@ GstFlowReturn video_sink_render(ghtv_video_sink* self, GstBuffer* buf)
       current += src_pitch;
       data = (char*)((data) + dest_pitch);
     }
-
+#else
+    size_t current = 0;
+    int i = 0;
+    for (; i != h; i++)
+    {
+      gst_buffer_extract(buf, current, data, pitch);
+      current += src_pitch;
+      data = (char*)((data) + dest_pitch);
+    }
+#endif
     self->surface->Unlock(self->surface);
 
     if(self->post_render_callback)
@@ -123,6 +152,7 @@ void video_sink_set_property(ghtv_video_sink* self
 
 gboolean set_caps(ghtv_video_sink* self, GstCaps* caps)
 {
+  printf("ghtv set_caps\n");
   GstStructure* structure = gst_caps_get_structure(caps, 0);
   gst_structure_get_int(structure, "width", &self->video_width);
   gst_structure_get_int(structure, "height", &self->video_height);
@@ -166,7 +196,13 @@ struct GstGhtvVideoSinkClass
   GstVideoSinkClass base;
 };
 
+struct GstGhtvVideoSourceClass
+{
+  GstPushSrcClass base;
+};
+
 typedef struct GstGhtvVideoSinkClass GstGhtvVideoSinkClass;
+typedef struct GstGhtvVideoSourceClass GstGhtvVideoSourceClass;
 
 void gst_ghtv_video_sink_base_init (gpointer g_class)
 {
@@ -225,7 +261,6 @@ void gst_ghtv_video_sink_class_init (GstGhtvVideoSinkClass * klass)
 
 void gst_ghtv_video_sink_init (ghtv_video_sink * v)
 {
-  v = (ghtv_video_sink*)malloc(sizeof(ghtv_video_sink));
   v->video_width = 0;
   v->video_height = 0;
   v->surface = 0;
@@ -301,12 +336,76 @@ gboolean video_sink_init(GstPlugin* plugin)
   return TRUE;
 }
 
+struct ghtv_video_source
+{
+  GstPushSrc base;
+};
+typedef struct ghtv_video_source ghtv_video_source;
+
+static ghtv_video_source* video_source;
+
+void gst_ghtv_video_source_init (ghtv_video_source * v)
+{
+  video_source = v;
+}
+
+static GstStaticPadTemplate srctemplate = GST_STATIC_PAD_TEMPLATE ("src",
+    GST_PAD_SRC,
+    GST_PAD_ALWAYS,
+    GST_STATIC_CAPS_ANY);
+
+void gst_ghtv_video_source_base_init (gpointer g_class)
+{
+  GstElementClass *element_class = GST_ELEMENT_CLASS (g_class);
+
+  gst_element_class_set_details_simple (element_class, "GHTV video source",
+      "Source/Video",
+      "GHTV video source", "GHTV");
+
+  gst_element_class_add_pad_template (element_class,
+      gst_static_pad_template_get (&srctemplate));
+}
+
+GstElement* source_element = 0;
+
+void init_plugin(GstElement* appsrc)
+{
+  g_object_set(appsrc, "is-live", (gboolean)1, NULL);
+  /* g_object_set(appsrc, "do-timestamp", (gboolean)0, NULL); */
+  g_object_set(appsrc, "emit-signals", (gboolean)0, NULL);
+  g_object_set(appsrc, "format", GST_FORMAT_BUFFERS, NULL);
+  g_object_set(appsrc, "block", (gboolean)1, NULL);
+  g_object_set(appsrc, "blocksize", (gulong)64*1024, NULL);
+  g_object_set(appsrc, "max-bytes", (uint64_t)1024*1024, NULL);
+  source_element = appsrc;
+}
+
+static uint64_t first_timestamp = -1;
+#if GST_VERSION_MAJOR == 1
+static uint64_t first_dts_timestamp = -1;
+#endif
+extern struct timespec m_start_tm;
+size_t size_in_second = 0;
+
 void middleware_api_video_sections(const char* original_buffer, size_t original_size
                                    , middleware_api_sections_filter_t filter
                                    , void* state)
 {
+  {
+    size_in_second += original_size;
+    struct timespec tm;
+    clock_gettime(CLOCK_REALTIME, &tm);
+    if(tm.tv_sec - m_start_tm.tv_sec)
+    {
+      printf("demultiplexed in bytes: %d\n", (int)size_in_second);
+      size_in_second = 0;
+      m_start_tm = tm;
+    }
+  }
+
+  assert(source_element != 0);
   size_t size = original_size;
-  uint8_t alignment = 0;
+  /* uint8_t alignment = 0; */
   const unsigned char* buffer = (const unsigned char*)original_buffer;
   /* while(size != 0) */
   /* { */
@@ -320,26 +419,26 @@ void middleware_api_video_sections(const char* original_buffer, size_t original_
     ((char*)&pes_packet_length)[1] = buffer[4];
     ((char*)&pes_packet_length)[0] = buffer[5];
 
-    printf("stream id: %d pes packet length %d real length: %d\n", (int)stream_id
-           , (int)pes_packet_length, (int)size);
+    /* printf("stream id: %d pes packet length %d real length: %d\n", (int)stream_id */
+    /*        , (int)pes_packet_length, (int)size); */
     assert(stream_id == 0xe0);
 
     /* if(!alignment || (stream_id != 9 && stream_id != 6)) */
     /* { */
     assert(((unsigned char)buffer[6] & 0xC0) == 0x80);
 
-    alignment = (((unsigned char)buffer[6]) >> 2) & 1;
-    printf("alignment %d\n", (int)alignment);
+    /* alignment = (((unsigned char)buffer[6]) >> 2) & 1; */
+    /* printf("alignment %d\n", (int)alignment); */
     uint8_t pts_dts_flags = (((unsigned char)buffer[7]) >> 6) & 3;
     uint8_t escr_flag = (((unsigned char)buffer[7]) >> 5) & 1;
     uint8_t es_rate_flag = (((unsigned char)buffer[7]) >> 4) & 1;
     uint8_t dsm_trick_mode_flag = (((unsigned char)buffer[7]) >> 3) & 1;
     uint8_t additional_copy_info_flag = (((unsigned char)buffer[7]) >> 2) & 1;
     uint8_t pes_crc_flag = (((unsigned char)buffer[7]) >> 1) & 1;
-    uint8_t pes_extension_flag = ((unsigned char)buffer[7]) & 1;
-    uint8_t pes_header_data_length = (unsigned char)buffer[8];
+    /* uint8_t pes_extension_flag = ((unsigned char)buffer[7]) & 1; */
+    /* uint8_t pes_header_data_length = (unsigned char)buffer[8]; */
 
-    printf("pes_header_data_length: %d\n", (int)pes_header_data_length);
+    /* printf("pes_header_data_length: %d\n", (int)pes_header_data_length); */
     
     int off = 9, start = 9;
     /* int off_payload = 9 + pes_header_data_length; */
@@ -348,14 +447,31 @@ void middleware_api_video_sections(const char* original_buffer, size_t original_
     /* printf("PES buffer size %d\n", (int)payload_size); */
 
     int data_bytes_consumed = 0;
+    uint64_t pts = -1, dts = 1;
 
     if(pts_dts_flags != 0)
     {
-      printf("pts_dts_flags: %d\n", pts_dts_flags);
+      /* printf("pts_dts_flags: %d\n", pts_dts_flags); */
+      pts = 0;
+      pts = ((uint64_t)(buffer[off] & 0xE)) << (uint64_t)29;
+      unsigned int u = buffer[off+1];
+      unsigned int d = (unsigned int)buffer[off+2] & 0xFE;
+      pts |= ((u << 8) + d) << 14;
+      u = buffer[off+3];
+      d = (unsigned int)buffer[off+4] & 0xFE;
+      pts |= ((u << 8) + d) >> 1;
       off += 5;
       data_bytes_consumed += 5;
       if(pts_dts_flags == 3)
       {
+        dts = 0;
+        dts = ((uint64_t)(buffer[off] & 0xE)) << (uint64_t)29;
+        u = buffer[off+1];
+        d = (unsigned int)buffer[off+2] & 0xFE;
+        dts |= ((u << 8) + d) << 14;
+        u = buffer[off+3];
+        d = (unsigned int)buffer[off+4] & 0xFE;
+        dts |= ((u << 8) + d) >> 1;
         off += 5;
         data_bytes_consumed += 5;
       }
@@ -364,42 +480,42 @@ void middleware_api_video_sections(const char* original_buffer, size_t original_
       return;
     if(escr_flag)
     {
-      printf("escr_flags\n");
+      /* printf("escr_flags\n"); */
       off += 6;
       data_bytes_consumed += 6;
     }
     if(es_rate_flag)
     {
-      printf("e_rate_flags\n");
+      /* printf("e_rate_flags\n"); */
       off += 3;
       data_bytes_consumed += 3;
     }
     if(dsm_trick_mode_flag)
     {
-      printf("dsm_trick_mode_flag\n");
+      /* printf("dsm_trick_mode_flag\n"); */
       off++;
       data_bytes_consumed++;
     }
     if(additional_copy_info_flag)
     {
-      printf("additional_copy_info_flag\n");
+      /* printf("additional_copy_info_flag\n"); */
       off++;
       data_bytes_consumed++;
     }
     if(pes_crc_flag)
     {
-      printf("pes_crc_flag\n");
+      /* printf("pes_crc_flag\n"); */
       off += 2;
       data_bytes_consumed += 2;
     }
-    if(pes_extension_flag)
-    {
-      printf("pes_extension_flag\n");
-    }
+    /* if(pes_extension_flag) */
+    /* { */
+    /*   printf("pes_extension_flag\n"); */
+    /* } */
 
-    printf("data_bytes_consumed: %d\nsize %d\n", (int)data_bytes_consumed, pes_header_data_length - data_bytes_consumed);
+    /* printf("data_bytes_consumed: %d\nsize %d\n", (int)data_bytes_consumed, pes_header_data_length - data_bytes_consumed); */
     
-    printf("middleware_api_video_sections\n");
+    /* printf("middleware_api_video_sections\n"); */
 
     assert (size >= start + data_bytes_consumed);
 
@@ -410,138 +526,63 @@ void middleware_api_video_sections(const char* original_buffer, size_t original_
 
     // feed gstreamer
     {
-      
+#if GST_VERSION_MAJOR == 0
+      GstBuffer* element_buffer = gst_buffer_new ();
+      GST_BUFFER_MALLOCDATA(element_buffer) = g_malloc(size);
+      GST_BUFFER_DATA(element_buffer) = GST_BUFFER_MALLOCDATA(element_buffer);
+      GST_BUFFER_SIZE(element_buffer) = size;
+      memcpy(GST_BUFFER_DATA(element_buffer), buffer, size);
+#else
+      GstBuffer* element_buffer = gst_buffer_new_allocate(NULL, size, NULL);
+      gst_buffer_fill(element_buffer, 0, buffer, size);
+#endif
+
+      /* { */
+      /*   int file = open("pes-packet.264", O_WRONLY|O_APPEND); */
+      /*   write(file, buffer, size); */
+      /*   close(file); */
+      /* } */
+
+      /* printf("pts_dts_flags: %d\n", (int)pts_dts_flags); */
+      assert(pts_dts_flags & 2);
+      uint64_t timestamp = gst_util_uint64_scale(pts, GST_MSECOND/10, 9LL);
+      if(first_timestamp == -1)
+      {
+        /* printf("Setting first_timestamp as: %p - 5*1000*1000*1000\n", (void*)timestamp); */
+        first_timestamp = timestamp - (5ull*1000ull*1000ull*1000ull);
+        /* printf("Setting first_timestamp as: %p\n", (void*)first_timestamp); */
+      }
+      /* if(first_timestamp == -1) */
+      /*   first_timestamp = 0; */
+      /* uint64_t timestamp = first_timestamp + (1000*1000*1000); */
+      /* first_timestamp = timestamp; */
+
+      /* printf("timestamp: %p pts: %p timestamp - base: %p\n", (void*)timestamp, (void*)pts, (void*)(timestamp - first_timestamp)); */
+#if GST_VERSION_MAJOR == 0
+      GST_BUFFER_TIMESTAMP(element_buffer) = timestamp - first_timestamp;
+#else
+      GST_BUFFER_PTS(element_buffer) = timestamp - first_timestamp;
+      if(pts_dts_flags & 1)
+      {
+        /* uint64_t dts_timestamp = gst_util_uint64_scale(dts, GST_MSECOND/10, 9LL); */
+        /* if(first_dts_timestamp == -1) */
+        /* { */
+        /*   printf("Setting first_timestamp as: %p - 5*1000*1000*1000\n", (void*)timestamp); */
+        /*   first_dts_timestamp = dts_timestamp - (5ull*1000ull*1000ull*1000ull); */
+        /*   printf("Setting first_timestamp as: %p\n", (void*)first_timestamp); */
+        /* } */
+        /* GST_BUFFER_DTS(element_buffer) = dts_timestamp - first_dts_timestamp; */
+      }
+#endif
+      //      GST_BUFFER_DURATION(element_buffer) = /*GST_CLOCK_TIME_NONE*/1000*1000;
+
+      GstFlowReturn ret = 0;
+      /* printf("Going to emit signal\n"); */
+      g_signal_emit_by_name (G_OBJECT(source_element), "push-buffer", element_buffer, &ret);
+      if (ret != GST_FLOW_OK)
+      {
+        /* printf("Error %d\n", (int)ret); */
+      }
     }
-
-    /* {     */
-    /*   uint8_t c[4] = {0, 0, 1, 0xe0}; */
-    /*   int i = 0, j = 0; */
-    /*   while(i != size) */
-    /*   { */
-    /*     int in = i; */
-    /*     while(in != size && j != sizeof(c)) */
-    /*     { */
-    /*       if(buffer[in] != c[j]) */
-    /*         break; */
-    /*       ++in; ++j; */
-    /*     } */
-    /*     if(j == sizeof(c)) */
-    /*     { */
-    /*       printf("Has 00 00 01 e0 pos: %d\n", (int)i); */
-    /*       assert(in - i >= sizeof(c)); */
-    /*       assert(buffer[in-4] == c[0]); */
-    /*       assert(buffer[in-4] == 0); */
-    /*       assert(buffer[in-3] == c[1]); */
-    /*       assert(buffer[in-3] == 0); */
-    /*       assert(buffer[in-2] == c[2]); */
-    /*       assert(buffer[in-2] == 1); */
-    /*       assert(buffer[in-1] == c[3]); */
-    /*       assert(buffer[in-1] == 224); */
-    /*       abort(); */
-    /*     } */
-    /*     else */
-    /*       j = 0; */
-    /*     ++i; */
-    /*   } */
-    /* } */
-
-    
-  /*   int o = open("pes-packet.264", O_RDWR | O_APPEND); */
-  /*   assert(o != -1); */
-  /*   write(o, &buffer[0], size); */
-  /*   assert((char*)buffer - original_buffer == original_size - size); */
-  /*   close(o); */
-
-  /*   do */
-  /*   { */
-  /*     buffer += 4; */
-  /*     // 14496-10 pg. 30 & pg. 48 */
-  /*     unsigned char first_byte = buffer[0]; */
-  /*     uint8_t nal_ref_idc = (int)((first_byte >> 5) & 0x3); */
-  /*     uint8_t nal_unit_type = (first_byte & 0x1F); */
-  /*     printf("first_byte: %d\n", (unsigned int)(unsigned char)first_byte); */
-  /*     printf("forbidden_zero_bit: %d\n", (int)(first_byte >> 7)); */
-  /*     printf("nal_ref_idc: %d\n", (int)nal_ref_idc); */
-  /*     printf("nal_unit_type: %d\n", (int)nal_unit_type); */
-
-  /*     ++buffer; */
-  /*     // access_unit_delimiter_rbsp */
-  /*     if(nal_unit_type == 9) */
-  /*     { */
-  /*       printf("access_unit_delimiter_rbsp %d\n", (unsigned int)(unsigned char)buffer[0]); */
-  /*       uint8_t primary_pic_type = ((unsigned char)buffer[0]) >> 5; */
-  /*       switch(primary_pic_type) */
-  /*       { */
-  /*       case 0: */
-  /*         printf("primary_pic_type: I\n"); */
-  /*         break; */
-  /*       case 1: */
-  /*         printf("primary_pic_type: I,P\n"); */
-  /*         break; */
-  /*       case 2: */
-  /*         printf("primary_pic_type: I,P,B\n"); */
-  /*         break; */
-  /*       case 3: */
-  /*         printf("primary_pic_type: SI\n"); */
-  /*         break; */
-  /*       case 4: */
-  /*         printf("primary_pic_type: SI,SP\n"); */
-  /*         break; */
-  /*       case 5: */
-  /*         printf("primary_pic_type: I,SI\n"); */
-  /*         break; */
-  /*       case 6: */
-  /*         printf("primary_pic_type: I,SI,P,SP\n"); */
-  /*         break; */
-  /*       case 7: */
-  /*         printf("primary_pic_type: I,SI,P,SP,B\n"); */
-  /*         break; */
-  /*       default: */
-  /*         abort(); */
-  /*       }; */
-  /*       ++buffer; */
-  /*     } */
-  /*     // sei_rbsp */
-  /*     else if(nal_unit_type == 6) */
-  /*     { */
-  /*       printf("sei_rbsp\n"); */
-  /*       //do while */
-  /*       // sei_message */
-  /*       while(((unsigned char)*buffer) == 0xFF) */
-  /*         ++buffer; */
-  /*       printf("last_payload_type %d\n", (unsigned int)(unsigned char)buffer[0]); */
-  /*       ++buffer; */
-  /*       unsigned int size = 0; */
-  /*       while((unsigned char)*buffer == 0xFF) */
-  /*       { */
-  /*         size += 0xFF; */
-  /*         ++buffer; */
-  /*       } */
-  /*       size += buffer[0]; */
-  /*       printf("payload size: %d\n", size); */
-  /*       ++buffer; */
-  /*       buffer += size; */
-  /*     } */
-  /*     // slice_layer_without_partitioning_rbsp */
-  /*     else if(nal_unit_type == 1 || nal_unit_type == 5) */
-  /*     { */
-  /*       break; */
-  /*     } */
-  /*     else */
-  /*     { */
-  /*       printf("unknown nal_unit_type: %d\n", nal_unit_type); */
-  /*       break; */
-  /*     } */
-  /*   } */
-  /*   while(size != 0); */
-    
-  /*   /\* } *\/ */
-  /*   /\* else *\/ */
-  /*   /\* { *\/ */
-  /*   /\*   assert(alignment != 0); *\/ */
-  /*   /\*   size -= 6; *\/ */
-  /*   /\*   buffer += 6; *\/ */
-  /*   /\* } *\/ */
-  /* /\* } *\/ */
 }
 

@@ -43,7 +43,7 @@ struct middleware_api_sections_filter
   unsigned int packets;
   unsigned int debug_packets;
   unsigned int sequence_packets;
-  uint8_t continuity_counter[2];
+  uint8_t continuity_counter[3];
   char is_section;
   uint8_t table_id[MIDDLEWARE_API_SECTIONS_TABLE_ID_SIZE];
   size_t table_id_size;
@@ -255,7 +255,7 @@ static void middleware_api_sections_notify_callback(middleware_api_sections_filt
       for(; i != MIDDLEWARE_API_SECTIONS_CALLBACK_SIZE
             && filter->callbacks[i]; ++i)
       {
-        printf("callbacks: %p\n", (void*)filter->callbacks[i]);
+        /* printf("callbacks: %p\n", (void*)filter->callbacks[i]); */
         filter->callbacks[i](&filter->section[0]
                              , filter->section_last
                              , filter, filter->states[0]);
@@ -273,7 +273,7 @@ void middleware_api_sections_read()
     abort();
   }
 
-  char buffer[1024];
+  char buffer[1024*1024];
   int r = 0, offset = 0, sync = 0, packet_number = 0;
   do
   {
@@ -289,8 +289,8 @@ void middleware_api_sections_read()
       int old_sync = sync;
       while((offset + r) - sync >= 188 && buffer[sync] != 0x47)
         ++sync;
-      if(old_sync != sync)
-        printf("Skipped %d bytes\n", (int)sync - old_sync);
+      /* if(old_sync != sync) */
+      /*   printf("Skipped %d bytes\n", (int)sync - old_sync); */
 
       if((offset + r) - sync >= MIDDLEWARE_API_SECTIONS_PACKET_SIZE)
       {
@@ -431,26 +431,26 @@ void middleware_api_sections_read()
                 {
                   if(filter->is_section)
                   {
-                    printf("treat pointer\n");
+                    /* printf("treat pointer\n"); */
                     unsigned char skip_c = packet_first[4+adaptation_total_length] + 1;
                     skip = skip_c;
                   }
-                  else
-                    printf("PES, no treat pointer\n");
+                  /* else */
+                  /*   printf("PES, no treat pointer\n"); */
 
                   if(filter->section_last)
                   {
-                    printf("Is first and is last\n");
+                    /* printf("Is first and is last\n"); */
 
                     if(skip < payload_size)
                     {
                       assert(filter->is_section == 0 || filter->is_section == 1);
                       /* printf("filter->section_last + skip - 1: %d\n" */
                       /*        , (int)filter->section_last + skip - 1); */
-                      printf("Number of non-discontinuity packets: %d\n", (int)filter->debug_packets);
-                      printf("Number of sequence packets: %d\n", (int)filter->sequence_packets);
-                      printf("Skip: %d adaptation total length: %d\n", (int)skip
-                             , (int)adaptation_total_length);
+                      /* printf("Number of non-discontinuity packets: %d\n", (int)filter->debug_packets); */
+                      /* printf("Number of sequence packets: %d\n", (int)filter->sequence_packets); */
+                      /* printf("Skip: %d adaptation total length: %d\n", (int)skip */
+                      /*        , (int)adaptation_total_length); */
                       assert(filter->section_last + skip - filter->is_section <= MIDDLEWARE_API_SECTIONS_SECTION_SIZE);
                       memcpy(&filter->section[filter->section_last]
                              , &packet_first[4+adaptation_total_length+filter->is_section /* +1 for pointer byte if is section */]
@@ -515,9 +515,11 @@ void middleware_api_sections_read()
               printf("======== Discontinuity %d\n", (int)pid);
               printf("MIDDLEWARE_API_SECTIONS_RPS(filter): %d\n", (int)MIDDLEWARE_API_SECTIONS_RPS(filter));
               printf("cc_packet %d\n", (int)cc_packet);
-              printf("MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)): %d\n"
+              printf("MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter): %d): %d\n"
+                     , (int)MIDDLEWARE_API_SECTIONS_RPS(filter)
                      , (int)MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)));
-              printf("MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)-1): %d\n"
+              printf("MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)-1: %d): %d\n"
+                     , (int)MIDDLEWARE_API_SECTIONS_RPS(filter)-1
                      , (int)MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter)-1));
               printf("MIDDLEWARE_API_SECTIONS_SUC_CC(MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter))): %d\n"
                      , (int)MIDDLEWARE_API_SECTIONS_SUC_CC(MIDDLEWARE_API_SECTIONS_CC_RP(filter, MIDDLEWARE_API_SECTIONS_RPS(filter))));
